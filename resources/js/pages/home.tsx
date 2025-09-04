@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Head } from "@inertiajs/react";
+import { motion } from "framer-motion";
+import { RefreshCcw } from "lucide-react";
 
 export default function Home() {
     const [fact, setFact] = useState<string>("Loading...");
@@ -23,16 +25,37 @@ export default function Home() {
 
     return (
         <>
-            <Head title="Random Cat Facts" />
-            <div className="min-h-screen flex flex-col items-center justify-center bg-white text-black dark:bg-gray-900 dark:text-white transition-colors">
-                <h1 className="text-3xl font-bold mb-4">🐱 Random Cat Facts</h1>
-                <p className="text-lg text-gray-700 dark:text-gray-300 mb-6">{fact}</p>
-                <button
-                    onClick={getNewFact}
-                    className="px-4 py-2 bg-indigo-500 text-white rounded-lg shadow hover:bg-indigo-600"
+            {/* <Head title="Random Cat Facts" /> */}
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-200 via-indigo-200 to-blue-200 p-6">
+                <motion.div
+                    initial={{ opacity: 0, y: 40 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6 }}
+                    className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl p-8 max-w-lg w-full text-center"
                 >
-                    Get Another Fact
-                </button>
+                    <h1 className="text-4xl font-extrabold text-indigo-700 mb-6 flex justify-center items-center gap-2">
+                        🐱 Cat Facts
+                    </h1>
+
+                    <motion.p
+                        key={fact} // triggers animation when fact changes
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4 }}
+                        className="text-lg text-gray-800 mb-8 leading-relaxed"
+                    >
+                        {fact}
+                    </motion.p>
+
+                    <motion.button
+                        whileTap={{ scale: 0.95 }}
+                        onClick={getNewFact}
+                        className="inline-flex items-center gap-2 px-5 py-3 bg-indigo-600 text-white font-semibold rounded-xl shadow-lg hover:bg-indigo-700 transition"
+                    >
+                        <RefreshCcw className="w-5 h-5" />
+                        New Fact
+                    </motion.button>
+                </motion.div>
             </div>
         </>
     );
