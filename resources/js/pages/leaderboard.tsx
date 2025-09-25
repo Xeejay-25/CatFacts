@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,11 +37,7 @@ export default function Leaderboard() {
     const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        fetchLeaderboards();
-    }, [selectedDifficulty]);
-
-    const fetchLeaderboards = async () => {
+    const fetchLeaderboards = useCallback(async () => {
         setLoading(true);
         try {
             // Fetch top games
@@ -65,7 +61,11 @@ export default function Leaderboard() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [selectedDifficulty]);
+
+    useEffect(() => {
+        fetchLeaderboards();
+    }, [fetchLeaderboards]);
 
     const formatTime = (seconds: number) => {
         const minutes = Math.floor(seconds / 60);
