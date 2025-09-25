@@ -43,6 +43,9 @@ class GameController extends Controller
                 'status' => 'playing',
             ]);
 
+            // Clear leaderboard cache for this user when new game is created
+            $this->clearLeaderboardCache($userId);
+
             DB::commit();
 
             return response()->json([
@@ -105,6 +108,10 @@ class GameController extends Controller
             }
 
             $game->update($updateData);
+            
+            // Clear leaderboard cache for this user when game is updated
+            $this->clearLeaderboardCache($game->user_id);
+            
             DB::commit();
 
             return response()->json([
@@ -241,10 +248,11 @@ class GameController extends Controller
             $userId = $request->get('user_id');
             $limit = min($request->get('limit', 10), 50); // Cap at 50
             $includeAll = $request->boolean('include_all', false);
+            $orderBy = $request->get('order_by', 'score'); // 'score' or 'date'
 
-            $cacheKey = "leaderboard_{$difficulty}_{$userId}_{$limit}_{$includeAll}";
+            $cacheKey = "leaderboard_{$difficulty}_{$userId}_{$limit}_{$includeAll}_{$orderBy}";
             
-            $leaderboard = Cache::remember($cacheKey, 300, function () use ($difficulty, $userId, $limit, $includeAll) {
+            $leaderboard = Cache::remember($cacheKey, 300, function () use ($difficulty, $userId, $limit, $includeAll, $orderBy) {
                 $query = Game::with(['user:id,name']);
 
                 // Filter by user if provided
@@ -261,9 +269,15 @@ class GameController extends Controller
                     $query->byDifficulty($difficulty);
                 }
 
-                return $query->orderBy('score', 'desc')
-                    ->orderBy('time_elapsed', 'asc')
-                    ->limit($limit)
+                // Order by date for history view, score for leaderboard view
+                if ($orderBy === 'date') {
+                    $query->orderBy('created_at', 'desc');
+                } else {
+                    $query->orderBy('score', 'desc')
+                          ->orderBy('time_elapsed', 'asc');
+                }
+
+                return $query->limit($limit)
                     ->get(['id', 'user_id', 'score', 'moves', 'time_elapsed', 
                            'difficulty', 'status', 'completed_at', 'created_at', 'collected_facts']);
             });
@@ -292,6 +306,7 @@ class GameController extends Controller
                         'difficulty' => $difficulty,
                         'user_id' => $userId,
                         'include_all' => $includeAll,
+                        'order_by' => $orderBy,
                         'limit' => $limit,
                     ]
                 ]
@@ -351,6 +366,28 @@ class GameController extends Controller
                 'message' => 'Failed to fetch game history',
                 'error' => config('app.debug') ? $e->getMessage() : null
             ], 500);
+        }
+    }
+
+    /**
+     * Clear leaderboard cache for a specific user
+     */
+    private function clearLeaderboardCache($userId): void
+    {
+        $difficulties = ['easy', 'medium', 'hard', null];
+        $limits = [10, 50]; // Common limit values
+        $includeAllValues = [true, false];
+        $orderByValues = ['score', 'date'];
+
+        foreach ($difficulties as $difficulty) {
+            foreach ($limits as $limit) {
+                foreach ($includeAllValues as $includeAll) {
+                    foreach ($orderByValues as $orderBy) {
+                        $cacheKey = "leaderboard_{$difficulty}_{$userId}_{$limit}_{$includeAll}_{$orderBy}";
+                        Cache::forget($cacheKey);
+                    }
+                }
+            }
         }
     }
 }
