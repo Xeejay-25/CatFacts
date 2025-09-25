@@ -4,10 +4,8 @@ import { Head, router } from '@inertiajs/react';
 interface User {
     id: number;
     name: string;
-    games_played: number;
-    completed_games: number;
-    best_score: number;
-    best_score_difficulty: 'easy' | 'medium' | 'hard' | null;
+    email: string;
+    created_at: string;
 }
 
 export default function UserSelect() {
@@ -16,7 +14,9 @@ export default function UserSelect() {
 
     const fetchUsers = useCallback(async () => {
         try {
-            const response = await fetch('/api/users/stats');
+            // Add timestamp to prevent browser caching
+            const timestamp = new Date().getTime();
+            const response = await fetch(`/api/users?t=${timestamp}`);
             const data = await response.json();
             if (data.success) {
                 setUsers(data.data.users || []);
@@ -46,27 +46,18 @@ export default function UserSelect() {
         }
     }, []);
 
-    const getDifficultyBadge = (difficulty: string | null) => {
-        if (!difficulty) return null;
-
-        const badges = {
-            easy: { color: 'bg-green-100 text-green-800', text: 'Easy' },
-            medium: { color: 'bg-yellow-100 text-yellow-800', text: 'Medium' },
-            hard: { color: 'bg-red-100 text-red-800', text: 'Hard' }
-        };
-
-        const badge = badges[difficulty as keyof typeof badges];
-        if (!badge) return null;
-
-        return (
-            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badge.color}`}>
-                {badge.text}
-            </span>
-        );
-    };
-
     useEffect(() => {
         fetchUsers();
+    }, [fetchUsers]);
+
+    // Refresh users when window gains focus (user navigates back)
+    useEffect(() => {
+        const handleFocus = () => {
+            fetchUsers();
+        };
+
+        window.addEventListener('focus', handleFocus);
+        return () => window.removeEventListener('focus', handleFocus);
     }, [fetchUsers]);
 
     if (loading) {
@@ -100,19 +91,14 @@ export default function UserSelect() {
                                         <h3 className="text-xl font-bold text-gray-800 mb-2">{user.name}</h3>
                                         <div className="text-sm text-gray-600 space-y-2">
                                             <div className="flex justify-between">
-                                                <span>Games Played:</span>
-                                                <span className="font-semibold">{user.games_played}</span>
+                                                <span>Email:</span>
+                                                <span className="font-semibold">{user.email}</span>
                                             </div>
                                             <div className="flex justify-between">
-                                                <span>Completed:</span>
-                                                <span className="font-semibold">{user.completed_games || 0}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center">
-                                                <span>Best Score:</span>
-                                                <div className="flex items-center space-x-2">
-                                                    <span className="font-semibold text-blue-600">{user.best_score}</span>
-                                                    {getDifficultyBadge(user.best_score_difficulty)}
-                                                </div>
+                                                <span>Joined:</span>
+                                                <span className="font-semibold">
+                                                    {new Date(user.created_at).toLocaleDateString()}
+                                                </span>
                                             </div>
                                             <div className="text-xs text-gray-500 mt-3 pt-2 border-t">Click to select</div>
                                         </div>

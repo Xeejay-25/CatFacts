@@ -62,7 +62,7 @@ export default function GameHistory() {
         if (!selectedUser) return;
 
         try {
-            const response = await fetch(`/api/games/leaderboard?user_id=${selectedUser.id}&limit=50`);
+            const response = await fetch(`/api/games/leaderboard?user_id=${selectedUser.id}&limit=50&include_all=true`);
             const data: LeaderboardResponse = await response.json();
 
             if (data.success && data.leaderboard) {
