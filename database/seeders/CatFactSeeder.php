@@ -14,7 +14,7 @@ class CatFactSeeder extends Seeder
      */
     public function run(): void
     {
-        $factsToSeed = 30;
+        $factsToSeed = 10;
         $imported = 0;
 
         $this->command->info("Fetching {$factsToSeed} cat facts from external API...");
