@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
-    return Inertia::render('simple-welcome');
+    return Inertia::render('welcome');
 })->name('home');
 
 Route::get('/play', function () {
@@ -20,7 +20,7 @@ Route::get('/play/create', function () {
 })->name('play.create');
 
 Route::get('/game', function () {
-    return Inertia::render('home');
+    return Inertia::render('game');
 })->name('game');
 
 Route::get('/history', function () {
