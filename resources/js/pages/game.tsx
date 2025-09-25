@@ -225,7 +225,7 @@ function MemoryGameComponent({ user }: { user: { id: number; name: string } }) {
                             initial={{ opacity: 0, scale: 0.8 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ duration: 0.5 }}
-                            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+                            className="fixed inset-0 flex items-center justify-center"
                         >
                             <div className="bg-white rounded-2xl shadow-2xl p-8 text-center max-w-md mx-4">
                                 <div className="text-6xl mb-4">🎉</div>
