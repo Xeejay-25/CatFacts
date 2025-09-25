@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { GameState, Card } from '@/types/game';
+import { GameState } from '@/types/game';
 import { generateCards, cardsMatch, calculateScore } from '@/lib/gameUtils';
 
 const initialGameState: GameState = {
@@ -69,7 +69,7 @@ export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy') =
 
     // Change difficulty
     const changeDifficulty = useCallback((newDifficulty: 'easy' | 'medium' | 'hard') => {
-        setGameState(prev => ({
+        setGameState(({
             ...initialGameState,
             difficulty: newDifficulty,
             cards: generateCards(newDifficulty),
@@ -136,7 +136,7 @@ export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy') =
                     const newCards = [...prev.cards];
                     const isMatch = cardsMatch(firstCard, card);
                     let newMatchedPairs = prev.matchedPairs;
-                    let newMoves = prev.moves + 1;
+                    const newMoves = prev.moves + 1;
 
                     if (isMatch) {
                         // Mark cards as matched
@@ -171,7 +171,7 @@ export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy') =
                 });
             }, 1000);
         }
-    }, [gameState.cards, gameState.selectedCards, gameState.gameStatus, gameState.moves, gameState.matchedPairs, gameState.timeElapsed, gameState.difficulty, showCatFactReward]);
+    }, [gameState.cards, gameState.selectedCards, gameState.gameStatus, showCatFactReward]);
 
     return {
         gameState,

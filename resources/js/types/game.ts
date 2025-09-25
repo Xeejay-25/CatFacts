@@ -11,7 +11,7 @@ export interface GameState {
     cards: Card[];
     score: number;
     moves: number;
-    gameStatus: 'idle' | 'playing' | 'paused' | 'won';
+    gameStatus: 'idle' | 'playing' | 'won';
     selectedCards: number[]; // indices of currently selected cards
     matchedPairs: number;
     difficulty: 'easy' | 'medium' | 'hard';
