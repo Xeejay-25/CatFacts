@@ -31,9 +31,21 @@ export default function UserSelect() {
     };
 
     const selectUser = (user: User) => {
-        sessionStorage.setItem('selectedUserId', user.id.toString());
-        sessionStorage.setItem('selectedUser', JSON.stringify(user));
-        router.visit('/game');
+        console.log('Selecting user:', user.name);
+
+        // Store the user data in sessionStorage
+        try {
+            sessionStorage.setItem('selectedUserId', user.id.toString());
+            sessionStorage.setItem('selectedUser', JSON.stringify(user));
+
+            console.log('User stored, navigating to game...');
+            // Navigate to game
+            router.visit('/game');
+
+        } catch (error) {
+            console.error('SessionStorage error:', error);
+            alert('Error selecting user. Please try again.');
+        }
     };
 
     if (loading) {
@@ -65,9 +77,10 @@ export default function UserSelect() {
                                     <div className="text-center">
                                         <div className="text-4xl mb-3">🎮</div>
                                         <h3 className="text-xl font-bold text-gray-800 mb-2">{user.name}</h3>
-                                        <div className="text-sm text-gray-600">
+                                        <div className="text-sm text-gray-600 space-y-1">
                                             <div>Games: {user.games_played}</div>
-                                            <div>Best: {user.best_score}</div>
+                                            <div>Best Score: {user.best_score}</div>
+                                            <div className="text-xs text-gray-500 mt-2">Click to select</div>
                                         </div>
                                     </div>
                                 </div>
