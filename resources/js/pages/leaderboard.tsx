@@ -19,7 +19,7 @@ export default function Leaderboard() {
     const fetchLeaderboards = useCallback(async () => {
         setLoading(true);
         setError(null);
-        
+
         try {
             // Fetch top games
             const gamesFilters: any = { limit: 10 };
