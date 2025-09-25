@@ -6,10 +6,37 @@ interface CardComponentProps {
     card: CardType;
     onClick: () => void;
     isDisabled: boolean;
+    difficulty: 'easy' | 'medium' | 'hard';
 }
 
-const CardComponent: React.FC<CardComponentProps> = ({ card, onClick, isDisabled }) => {
+const CardComponent: React.FC<CardComponentProps> = ({ card, onClick, isDisabled, difficulty }) => {
     const { isFlipped, isMatched, symbol } = card;
+    
+    // Adjust emoji size based on difficulty
+    const getEmojiSize = () => {
+        switch (difficulty) {
+            case 'hard':
+                return 'text-3xl'; // Smaller for 6x6 grid
+            case 'medium':
+                return 'text-4xl'; // Medium size
+            default: // easy
+                return 'text-4xl'; // Standard size
+        }
+    };
+    
+    const getSymbolSize = () => {
+        switch (difficulty) {
+            case 'hard':
+                return 'text-3xl sm:text-4xl'; // Smaller symbols for hard
+            case 'medium':
+                return 'text-4xl sm:text-5xl'; // Medium symbols
+            default: // easy
+                return 'text-6xl sm:text-5xl md:text-6xl'; // Large symbols
+        }
+    };
+
+    const emojiSize = getEmojiSize();
+    const symbolSize = getSymbolSize();
 
     return (
         <div className="relative w-full aspect-square">
@@ -37,7 +64,7 @@ const CardComponent: React.FC<CardComponentProps> = ({ card, onClick, isDisabled
                     }}
                 >
                     <div className="flex items-center justify-center h-full">
-                        <div className="text-4xl">
+                        <div className={emojiSize}>
                             {isMatched ? '✨' : '🐾'}
                         </div>
                     </div>
@@ -60,7 +87,7 @@ const CardComponent: React.FC<CardComponentProps> = ({ card, onClick, isDisabled
                 >
                     <div className="flex items-center justify-center h-full">
                         <motion.div
-                            className="text-6xl sm:text-5xl md:text-6xl"
+                            className={symbolSize}
                             initial={{ scale: 0 }}
                             animate={{ scale: isFlipped || isMatched ? 1 : 0 }}
                             transition={{ delay: 0.3, duration: 0.3, ease: 'backOut' }}
