@@ -12,7 +12,9 @@ interface Game {
     moves: number;
     time_elapsed: number;
     difficulty: 'easy' | 'medium' | 'hard';
+    status: 'playing' | 'won' | 'abandoned';
     completed_at: string;
+    created_at: string;
     facts_collected: number;
 }
 
@@ -27,6 +29,12 @@ const difficultyColors = {
     hard: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
 };
 
+const statusColors = {
+    won: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+    playing: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
+    abandoned: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300',
+};
+
 export default function GameHistory() {
     const [games, setGames] = useState<Game[]>([]);
     const [loading, setLoading] = useState(true);
@@ -37,9 +45,9 @@ export default function GameHistory() {
 
     const fetchGameHistory = async () => {
         try {
-            const response = await fetch('/api/games/leaderboard');
+            const response = await fetch('/api/games/leaderboard?include_all=true&limit=50');
             const data: LeaderboardResponse = await response.json();
-
+            
             if (data.success) {
                 setGames(data.leaderboard);
             }
@@ -48,9 +56,7 @@ export default function GameHistory() {
         } finally {
             setLoading(false);
         }
-    };
-
-    const formatTime = (seconds: number) => {
+    };    const formatTime = (seconds: number) => {
         const minutes = Math.floor(seconds / 60);
         const secs = seconds % 60;
         return `${minutes}:${secs.toString().padStart(2, '0')}`;
@@ -141,12 +147,12 @@ export default function GameHistory() {
                                                     <Badge className={difficultyColors[game.difficulty]}>
                                                         {game.difficulty.charAt(0).toUpperCase() + game.difficulty.slice(1)}
                                                     </Badge>
-                                                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
-                                                        Completed
+                                                    <Badge className={statusColors[game.status]}>
+                                                        {game.status === 'won' ? 'Completed' : game.status.charAt(0).toUpperCase() + game.status.slice(1)}
                                                     </Badge>
                                                 </div>
                                                 <CardDescription>
-                                                    {formatDate(game.completed_at)}
+                                                    {formatDate(game.completed_at || game.created_at)}
                                                 </CardDescription>
                                             </div>
                                         </CardHeader>
