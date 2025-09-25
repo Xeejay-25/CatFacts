@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 
 interface CelebrationAnimationProps {
@@ -8,7 +8,8 @@ interface CelebrationAnimationProps {
 const CelebrationAnimation: React.FC<CelebrationAnimationProps> = ({ isVisible }) => {
     if (!isVisible) return null;
 
-    const emojis = ['🎉', '✨', '🐱', '🌟', '🎊', '💫'];
+    const emojis = useMemo(() => ['🎉', '✨', '🐱', '🌟', '🎊', '💫'], []);
+    const confettiArray = useMemo(() => Array.from({ length: 20 }), []);
 
     return (
         <div className="fixed inset-0 pointer-events-none z-40">
@@ -39,7 +40,7 @@ const CelebrationAnimation: React.FC<CelebrationAnimationProps> = ({ isVisible }
             ))}
 
             {/* Confetti particles */}
-            {Array.from({ length: 20 }).map((_, index) => (
+            {confettiArray.map((_, index) => (
                 <motion.div
                     key={`confetti-${index}`}
                     className="absolute w-2 h-2 bg-gradient-to-r from-pink-400 to-purple-500 rounded-full"
