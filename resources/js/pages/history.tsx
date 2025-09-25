@@ -20,7 +20,10 @@ interface Game {
 
 interface LeaderboardResponse {
     success: boolean;
-    leaderboard: Game[];
+    data: {
+        leaderboard: Game[];
+        total_entries: number;
+    };
 }
 
 const difficultyColors = {
@@ -63,10 +66,10 @@ export default function GameHistory() {
 
         try {
             const response = await fetch(`/api/games/leaderboard?user_id=${selectedUser.id}&limit=50&include_all=true`);
-            const data: LeaderboardResponse = await response.json();
+            const data = await response.json();
 
-            if (data.success && data.leaderboard) {
-                setGames(data.leaderboard);
+            if (data.success && data.data && data.data.leaderboard) {
+                setGames(data.data.leaderboard);
             }
         } catch (error) {
             console.error('Failed to fetch game history:', error);
