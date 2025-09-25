@@ -152,12 +152,18 @@ class GameController extends Controller
     {
         $difficulty = $request->get('difficulty');
         $limit = $request->get('limit', 10);
+        $includeAll = $request->get('include_all', false); // New parameter
 
-        $query = Game::completed()
-            ->with('user')
-            ->orderBy('score', 'desc')
-            ->orderBy('time_elapsed', 'asc')
-            ->limit($limit);
+        $query = Game::with('user');
+
+        // If include_all is false (default), only show completed games
+        if (!$includeAll) {
+            $query->completed();
+        }
+
+        $query->orderBy('score', 'desc')
+              ->orderBy('time_elapsed', 'asc')
+              ->limit($limit);
 
         if ($difficulty) {
             $query->byDifficulty($difficulty);
@@ -175,7 +181,9 @@ class GameController extends Controller
                     'moves' => $game->moves,
                     'time_elapsed' => $game->time_elapsed,
                     'difficulty' => $game->difficulty,
+                    'status' => $game->status,
                     'completed_at' => $game->completed_at,
+                    'created_at' => $game->created_at,
                     'facts_collected' => count($game->collected_facts ?? []),
                 ];
             }),
