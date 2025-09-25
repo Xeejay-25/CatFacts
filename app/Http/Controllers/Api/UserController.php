@@ -31,13 +31,18 @@ class UserController extends Controller
         ->orderBy('best_score', 'desc')
         ->get()
         ->map(function ($user) {
+            // Get the game with the highest score to determine difficulty
+            $bestGame = $user->games()->orderBy('score', 'desc')->first();
+            
             return [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
                 'games_played' => $user->games_played ?? 0,
+                'completed_games' => $user->completed_games ?? 0,
                 'total_score' => (int) ($user->total_score ?? 0),
                 'best_score' => $user->best_score ?? 0,
+                'best_score_difficulty' => $bestGame ? $bestGame->difficulty : null,
                 'average_time' => round($user->average_time ?? 0),
                 'created_at' => $user->created_at->toISOString(),
             ];
