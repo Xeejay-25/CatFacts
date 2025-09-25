@@ -149,7 +149,7 @@ export default function Leaderboard() {
                                             <CardDescription>
                                                 Best individual game performances
                                             </CardDescription>
-                                            
+
                                             {/* Difficulty Filter */}
                                             <div className="flex gap-2 mt-4">
                                                 {['all', 'easy', 'medium', 'hard'].map((difficulty) => (
@@ -178,9 +178,8 @@ export default function Leaderboard() {
                                                             initial={{ opacity: 0, y: 10 }}
                                                             animate={{ opacity: 1, y: 0 }}
                                                             transition={{ duration: 0.3, delay: index * 0.1 }}
-                                                            className={`flex items-center justify-between p-3 rounded-lg border ${
-                                                                index < 3 ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200' : 'bg-gray-50 border-gray-200'
-                                                            }`}
+                                                            className={`flex items-center justify-between p-3 rounded-lg border ${index < 3 ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200' : 'bg-gray-50 border-gray-200'
+                                                                }`}
                                                         >
                                                             <div className="flex items-center gap-3">
                                                                 {getRankIcon(index)}
@@ -193,7 +192,7 @@ export default function Leaderboard() {
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                            
+
                                                             <div className="flex items-center gap-3">
                                                                 <Badge className={difficultyColors[game.difficulty]}>
                                                                     {game.difficulty}
@@ -244,9 +243,8 @@ export default function Leaderboard() {
                                                             initial={{ opacity: 0, y: 10 }}
                                                             animate={{ opacity: 1, y: 0 }}
                                                             transition={{ duration: 0.3, delay: index * 0.1 }}
-                                                            className={`p-4 rounded-lg border ${
-                                                                index < 3 ? 'bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200' : 'bg-gray-50 border-gray-200'
-                                                            }`}
+                                                            className={`p-4 rounded-lg border ${index < 3 ? 'bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200' : 'bg-gray-50 border-gray-200'
+                                                                }`}
                                                         >
                                                             <div className="flex items-center justify-between mb-3">
                                                                 <div className="flex items-center gap-3">
@@ -262,7 +260,7 @@ export default function Leaderboard() {
                                                                     <div className="text-sm text-gray-500">Best Score</div>
                                                                 </div>
                                                             </div>
-                                                            
+
                                                             <div className="grid grid-cols-3 gap-4 text-sm">
                                                                 <div className="text-center">
                                                                     <div className="flex items-center justify-center mb-1">
