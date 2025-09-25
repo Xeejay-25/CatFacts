@@ -94,19 +94,9 @@ export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy') =
         setGameState(prev => ({
             ...prev,
             catFacts: [...prev.catFacts, fact],
-            currentFact: fact,
-            showFact: true,
+            // Remove the modal display - just add the fact silently
         }));
     }, [fetchCatFact]);
-
-    // Close cat fact modal
-    const closeCatFact = useCallback(() => {
-        setGameState(prev => ({
-            ...prev,
-            showFact: false,
-            currentFact: null,
-        }));
-    }, []);
 
     // Handle card click
     const handleCardClick = useCallback(async (cardId: number) => {
@@ -189,7 +179,6 @@ export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy') =
         resetGame,
         changeDifficulty,
         handleCardClick,
-        closeCatFact,
         isCardClickDisabled: gameState.selectedCards.length >= 2 || gameState.gameStatus !== 'playing',
     };
 };
