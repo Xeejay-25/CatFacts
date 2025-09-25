@@ -38,17 +38,40 @@ const statusColors = {
 export default function GameHistory() {
     const [games, setGames] = useState<Game[]>([]);
     const [loading, setLoading] = useState(true);
+    const [selectedUser, setSelectedUser] = useState<{ id: number; name: string } | null>(null);
 
     useEffect(() => {
-        fetchGameHistory();
+        // Get selected user from sessionStorage
+        const userId = sessionStorage.getItem('selectedUserId');
+        const userJson = sessionStorage.getItem('selectedUser');
+
+        if (userId && userJson) {
+            try {
+                const userData = JSON.parse(userJson);
+                setSelectedUser({
+                    id: parseInt(userId),
+                    name: userData.name
+                });
+            } catch (error) {
+                console.error('Error parsing user data:', error);
+            }
+        }
     }, []);
 
+    useEffect(() => {
+        if (selectedUser) {
+            fetchGameHistory();
+        }
+    }, [selectedUser]);
+
     const fetchGameHistory = async () => {
+        if (!selectedUser) return;
+
         try {
-            const response = await fetch('/api/games/leaderboard?include_all=true&limit=50');
+            const response = await fetch(`/api/games/leaderboard?user_id=${selectedUser.id}&limit=50`);
             const data: LeaderboardResponse = await response.json();
 
-            if (data.success) {
+            if (data.success && data.leaderboard) {
                 setGames(data.leaderboard);
             }
         } catch (error) {
@@ -56,7 +79,9 @@ export default function GameHistory() {
         } finally {
             setLoading(false);
         }
-    }; const formatTime = (seconds: number) => {
+    };
+
+    const formatTime = (seconds: number) => {
         const minutes = Math.floor(seconds / 60);
         const secs = seconds % 60;
         return `${minutes}:${secs.toString().padStart(2, '0')}`;
@@ -88,7 +113,7 @@ export default function GameHistory() {
                         {/* Header */}
                         <div className="flex items-center justify-between mb-8">
                             <div className="flex items-center gap-4">
-                                <Link href="/">
+                                <Link href="/game">
                                     <Button variant="ghost" size="sm">
                                         <ArrowLeft className="w-4 h-4 mr-2" />
                                         Back to Game
@@ -99,7 +124,7 @@ export default function GameHistory() {
                                         Game History
                                     </h1>
                                     <p className="text-gray-600 dark:text-gray-300">
-                                        View all completed memory games
+                                        {selectedUser ? `${selectedUser.name}'s game history` : 'View completed memory games'}
                                     </p>
                                 </div>
                             </div>

@@ -5,7 +5,9 @@ interface User {
     id: number;
     name: string;
     games_played: number;
+    completed_games: number;
     best_score: number;
+    best_score_difficulty: 'easy' | 'medium' | 'hard' | null;
 }
 
 export default function UserSelect() {
@@ -44,6 +46,25 @@ export default function UserSelect() {
         }
     }, []);
 
+    const getDifficultyBadge = (difficulty: string | null) => {
+        if (!difficulty) return null;
+
+        const badges = {
+            easy: { color: 'bg-green-100 text-green-800', text: 'Easy' },
+            medium: { color: 'bg-yellow-100 text-yellow-800', text: 'Medium' },
+            hard: { color: 'bg-red-100 text-red-800', text: 'Hard' }
+        };
+
+        const badge = badges[difficulty as keyof typeof badges];
+        if (!badge) return null;
+
+        return (
+            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badge.color}`}>
+                {badge.text}
+            </span>
+        );
+    };
+
     useEffect(() => {
         fetchUsers();
     }, [fetchUsers]);
@@ -77,10 +98,23 @@ export default function UserSelect() {
                                     <div className="text-center">
                                         <div className="text-4xl mb-3">🎮</div>
                                         <h3 className="text-xl font-bold text-gray-800 mb-2">{user.name}</h3>
-                                        <div className="text-sm text-gray-600 space-y-1">
-                                            <div>Games: {user.games_played}</div>
-                                            <div>Best Score: {user.best_score}</div>
-                                            <div className="text-xs text-gray-500 mt-2">Click to select</div>
+                                        <div className="text-sm text-gray-600 space-y-2">
+                                            <div className="flex justify-between">
+                                                <span>Games Played:</span>
+                                                <span className="font-semibold">{user.games_played}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span>Completed:</span>
+                                                <span className="font-semibold">{user.completed_games || 0}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center">
+                                                <span>Best Score:</span>
+                                                <div className="flex items-center space-x-2">
+                                                    <span className="font-semibold text-blue-600">{user.best_score}</span>
+                                                    {getDifficultyBadge(user.best_score_difficulty)}
+                                                </div>
+                                            </div>
+                                            <div className="text-xs text-gray-500 mt-3 pt-2 border-t">Click to select</div>
                                         </div>
                                     </div>
                                 </div>

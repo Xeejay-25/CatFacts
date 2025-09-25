@@ -56,8 +56,8 @@ function MemoryGameComponent({ user }: { user: { id: number; name: string } }) {
                         transition={{ duration: 0.6 }}
                         className="text-center mb-8"
                     >
-                        <div className="flex justify-center mb-4">
-                            <div className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg shadow-md mr-4">
+                        <div className="flex justify-center mb-4 space-x-4">
+                            <div className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg shadow-md">
                                 🎮 Playing as: <strong className="ml-2">{user.name}</strong>
                             </div>
                             <Link
@@ -65,6 +65,12 @@ function MemoryGameComponent({ user }: { user: { id: number; name: string } }) {
                                 className="inline-flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium rounded-lg shadow-md transition-colors"
                             >
                                 🔄 Switch Player
+                            </Link>
+                            <Link
+                                href="/history"
+                                className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg shadow-md transition-colors"
+                            >
+                                📊 History
                             </Link>
                         </div>
                         <h1 className="text-4xl font-bold text-gray-800 mb-2">
