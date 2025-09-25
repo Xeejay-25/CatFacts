@@ -1,11 +1,27 @@
 import React, { useEffect, useState } from "react";
-import { Head, Link } from "@inertiajs/react";
+import { Head, Link, router } from "@inertiajs/react";
 import { motion } from "framer-motion";
 import { useMemoryGame } from "@/hooks/useMemoryGame";
 import GameBoard from "@/components/GameBoard";
 import CelebrationAnimation from "@/components/CelebrationAnimation";
 
 export default function Home() {
+    const [selectedUser, setSelectedUser] = useState<number | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Get selected user from sessionStorage
+    useEffect(() => {
+        const userId = sessionStorage.getItem('selectedUserId');
+        if (userId) {
+            setSelectedUser(parseInt(userId));
+        } else {
+            // Redirect to user selection if no user is selected
+            router.visit('/');
+            return;
+        }
+        setIsLoading(false);
+    }, []);
+
     const {
         gameState,
         startGame,
@@ -13,7 +29,16 @@ export default function Home() {
         changeDifficulty,
         handleCardClick,
         isCardClickDisabled,
-    } = useMemoryGame('easy');
+    } = useMemoryGame('easy', selectedUser || undefined);
+
+    // Show loading while checking for user
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-purple-200 via-indigo-200 to-blue-200 flex items-center justify-center">
+                <div className="text-xl text-gray-700">Loading...</div>
+            </div>
+        );
+    }
 
     const [showCelebration, setShowCelebration] = useState(false);
     const [showFactCelebration, setShowFactCelebration] = useState(false);
