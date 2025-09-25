@@ -176,7 +176,7 @@ function MemoryGameComponent({ user }: { user: { id: number; name: string } }) {
                                         transition={{ duration: 0.3, delay: index * 0.1 }}
                                         className="bg-white rounded-lg p-4 shadow-sm"
                                     >
-                                        <p className="text-gray-700">{fact}</p>
+                                        <p className="text-gray-700">{fact.fact}</p>
                                     </motion.div>
                                 ))}
                             </div>
