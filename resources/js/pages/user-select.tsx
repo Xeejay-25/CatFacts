@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Head, router } from '@inertiajs/react';
 
 interface User {
@@ -12,11 +12,7 @@ export default function UserSelect() {
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        fetchUsers();
-    }, []);
-
-    const fetchUsers = async () => {
+    const fetchUsers = useCallback(async () => {
         try {
             const response = await fetch('/api/users/stats');
             const data = await response.json();
@@ -28,9 +24,9 @@ export default function UserSelect() {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    const selectUser = (user: User) => {
+    const selectUser = useCallback((user: User) => {
         console.log('Selecting user:', user.name);
 
         // Store the user data in sessionStorage
@@ -46,7 +42,11 @@ export default function UserSelect() {
             console.error('SessionStorage error:', error);
             alert('Error selecting user. Please try again.');
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        fetchUsers();
+    }, [fetchUsers]);
 
     if (loading) {
         return (

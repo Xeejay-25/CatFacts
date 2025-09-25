@@ -7,8 +7,10 @@ import CelebrationAnimation from "@/components/CelebrationAnimation";
 
 // Memory Game Component with full functionality
 function MemoryGameComponent({ user }: { user: { id: number; name: string } }) {
-    const [showCelebration, setShowCelebration] = useState(false);
-    const [showFactCelebration, setShowFactCelebration] = useState(false);
+    const [celebrationState, setCelebrationState] = useState({
+        showMain: false,
+        showFact: false
+    });
 
     const {
         gameState,
@@ -24,8 +26,9 @@ function MemoryGameComponent({ user }: { user: { id: number; name: string } }) {
     // Trigger celebration when game is won
     useEffect(() => {
         if (gameState.gameStatus === 'won') {
-            setShowCelebration(true);
-            const timer = setTimeout(() => setShowCelebration(false), 6000);
+            setCelebrationState(prev => ({ ...prev, showMain: true }));
+            const timer = setTimeout(() =>
+                setCelebrationState(prev => ({ ...prev, showMain: false })), 6000);
             return () => clearTimeout(timer);
         }
     }, [gameState.gameStatus]);
@@ -34,8 +37,9 @@ function MemoryGameComponent({ user }: { user: { id: number; name: string } }) {
     useEffect(() => {
         const factCount = gameState.catFacts.length;
         if (factCount > 0) {
-            setShowFactCelebration(true);
-            const timer = setTimeout(() => setShowFactCelebration(false), 2000);
+            setCelebrationState(prev => ({ ...prev, showFact: true }));
+            const timer = setTimeout(() =>
+                setCelebrationState(prev => ({ ...prev, showFact: false })), 2000);
             return () => clearTimeout(timer);
         }
     }, [gameState.catFacts.length]);
@@ -205,8 +209,8 @@ function MemoryGameComponent({ user }: { user: { id: number; name: string } }) {
                 </div>
 
                 {/* Celebrations */}
-                {showCelebration && <CelebrationAnimation isVisible={showCelebration} />}
-                {showFactCelebration && (
+                {celebrationState.showMain && <CelebrationAnimation isVisible={celebrationState.showMain} />}
+                {celebrationState.showFact && (
                     <motion.div
                         initial={{ opacity: 0, scale: 0.5 }}
                         animate={{ opacity: 1, scale: 1 }}
