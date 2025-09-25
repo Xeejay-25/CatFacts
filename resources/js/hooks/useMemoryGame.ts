@@ -67,6 +67,8 @@ export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy', u
     // Start game
     const startGame = useCallback(async () => {
         try {
+            // Generate a fresh session ID for this game
+            ApiService.clearSession();
             const response = await ApiService.startGame(gameState.difficulty, userId);
 
             if (response.success && response.data) {
@@ -130,11 +132,14 @@ export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy', u
             }
         }
 
+        // Clear the session to get a fresh one for the next game
+        ApiService.clearSession();
+
         setGameState(prev => ({
             ...initialGameState,
             difficulty: prev.difficulty,
             cards: generateCards(prev.difficulty),
-            sessionId: prev.sessionId,
+            sessionId: ApiService.getSessionId(),
         }));
     }, [gameState.gameId, gameState.gameStatus, gameState.score, gameState.moves, gameState.timeElapsed, gameState.matchedPairs]);
 
@@ -155,11 +160,14 @@ export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy', u
             }
         }
 
+        // Clear the session to get a fresh one for the next game
+        ApiService.clearSession();
+
         setGameState(prev => ({
             ...initialGameState,
             difficulty: newDifficulty,
             cards: generateCards(newDifficulty),
-            sessionId: prev.sessionId,
+            sessionId: ApiService.getSessionId(),
         }));
     }, [gameState.gameId, gameState.gameStatus, gameState.score, gameState.moves, gameState.timeElapsed, gameState.matchedPairs]);
 
@@ -213,22 +221,22 @@ export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy', u
     }, [getCatFactReward]);
 
     // Complete game
-    const completeGame = useCallback(async (finalScore: number) => {
+    const completeGame = useCallback(async (finalScore: number, finalMoves: number, finalTime: number, finalMatchedPairs: number) => {
         if (gameState.gameId) {
             try {
                 await ApiService.updateGame(gameState.gameId, {
                     status: 'won',
                     score: finalScore,
-                    moves: gameState.moves,
-                    time_elapsed: gameState.timeElapsed,
-                    matched_pairs: gameState.matchedPairs,
+                    moves: finalMoves,
+                    time_elapsed: finalTime,
+                    matched_pairs: finalMatchedPairs,
                 });
                 console.log('Game completed on backend');
             } catch (error) {
                 console.error('Failed to complete game on backend:', error);
             }
         }
-    }, [gameState.gameId, gameState.moves, gameState.timeElapsed, gameState.matchedPairs]);
+    }, [gameState.gameId]);
 
     // Handle card click
     const handleCardClick = useCallback(async (cardId: number) => {
@@ -294,7 +302,7 @@ export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy', u
                     // Complete game if won
                     if (isGameWon) {
                         console.log('Game won! Final score:', newScore);
-                        completeGame(newScore);
+                        completeGame(newScore, newMoves, prev.timeElapsed, newMatchedPairs);
                     }
 
                     return {
