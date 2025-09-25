@@ -21,30 +21,31 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: 8.4
+          php-version: 8.2   # safer, Laravel doesn’t support 8.4 yet
           tools: composer:v2
           coverage: xdebug
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20' # stable LTS
           cache: 'npm'
 
       - name: Install Node Dependencies
         run: npm ci
 
-      - name: Install Dependencies
+      - name: Install PHP Dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
-      - name: Build Assets
-        run: npm run build
-
+      # ✅ Move these before build
       - name: Copy Environment File
         run: cp .env.example .env
 
       - name: Generate Application Key
         run: php artisan key:generate
 
-      - name: Tests
+      - name: Build Assets
+        run: npm run build
+
+      - name: Run Tests
         run: ./vendor/bin/pest
