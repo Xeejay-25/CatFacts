@@ -1,7 +1,11 @@
-export default function AppLogoIcon() {
+interface AppLogoIconProps {
+    className?: string;
+}
+
+export default function AppLogoIcon({ className }: AppLogoIconProps) {
     return (
         <>
-            <div className="flex aspect-square size-8 items-center justify-center rounded-md  text-sidebar-primary-foreground">
+            <div className={`flex aspect-square size-8 items-center justify-center rounded-md text-sidebar-primary-foreground ${className || ''}`}>
                 <img
                     src="/images/logo.png"
                     alt="SPMC Payroll"
