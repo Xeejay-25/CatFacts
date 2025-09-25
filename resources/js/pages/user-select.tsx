@@ -19,7 +19,7 @@ export default function UserSelect() {
             const response = await fetch('/api/users/stats');
             const data = await response.json();
             if (data.success) {
-                setUsers(data.users || []);
+                setUsers(data.data.users || []);
             }
         } catch (error) {
             console.error('Failed to fetch users:', error);
