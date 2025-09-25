@@ -1,13 +1,13 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { RotateCcw, Play, Pause, Trophy, Clock, Target } from 'lucide-react';
+import { RotateCcw, Play, Trophy, Clock, Target } from 'lucide-react';
 import { formatTime } from '@/lib/gameUtils';
 
 interface GameControlsProps {
     score: number;
     moves: number;
     timeElapsed: number;
-    gameStatus: 'idle' | 'playing' | 'paused' | 'won';
+    gameStatus: 'idle' | 'playing' | 'won';
     difficulty: 'easy' | 'medium' | 'hard';
     matchedPairs: number;
     totalPairs: number;
@@ -78,8 +78,8 @@ const GameControls: React.FC<GameControlsProps> = ({
                             key={level}
                             onClick={() => onDifficultyChange(level)}
                             className={`px-4 py-2 rounded-lg font-medium transition-all ${difficulty === level
-                                    ? 'bg-indigo-600 text-white shadow-lg'
-                                    : 'bg-white/80 text-gray-700 hover:bg-white'
+                                ? 'bg-indigo-600 text-white shadow-lg'
+                                : 'bg-white/80 text-gray-700 hover:bg-white'
                                 }`}
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
