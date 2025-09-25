@@ -15,7 +15,52 @@ use Illuminate\Support\Facades\Log;
 class UserController extends Controller
 {
     /**
-     * Get users with their game statistics (cached for performance)
+     * Get all users for player selection (/play/select page)
+     * Shows ALL created users regardless of games or scores
+     */
+    public function index(Request $request): JsonResponse
+    {
+        try {
+            $limit = min($request->get('limit', 100), 200); // Cap at 200
+            
+            $users = User::select(['id', 'name', 'email', 'created_at'])
+                ->orderBy('name', 'asc')
+                ->limit($limit)
+                ->get()
+                ->map(function ($user) {
+                    return [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'created_at' => $user->created_at->toISOString(),
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'users' => $users,
+                    'total' => $users->count(),
+                ],
+                'message' => 'All users retrieved for player selection'
+            ])->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+              ->header('Pragma', 'no-cache')
+              ->header('Expires', '0');
+            
+        } catch (\Exception $e) {
+            Log::error('Error fetching users for player selection: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to fetch users',
+                'error' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
+        }
+    }
+
+    /**
+     * Get user statistics with game data (for admin/analytics purposes)
+     * Shows users with their game statistics - filtered to active players only
      */
     public function stats(Request $request): JsonResponse
     {
@@ -42,7 +87,7 @@ class UserController extends Controller
                 ->withSum('games as total_score', 'score')
                 ->withMax('games as best_score', 'score')
                 ->withAvg('games as average_time', 'time_elapsed')
-                ->having('games_played', '>', 0) // Only show users who have played
+                ->having('games_played', '>', 0) // Only active players for statistics
                 ->orderBy('best_score', 'desc')
                 ->limit($limit)
                 ->get()
@@ -70,14 +115,15 @@ class UserController extends Controller
                 return [
                     'total_users' => $totalUsers,
                     'total_games' => $totalGames,
-                    'active_users' => $users->count(),
+                    'active_users' => $users->count(), // Users who have played games
                     'users' => $users,
                 ];
             });
 
             return response()->json([
                 'success' => true,
-                'data' => $data
+                'data' => $data,
+                'message' => 'User statistics retrieved for active players'
             ]);
             
         } catch (\Exception $e) {
@@ -139,7 +185,9 @@ class UserController extends Controller
     }
 
     /**
-     * Get leaderboard of top players (optimized with single query)
+     * Get leaderboard of players (/leaderboard page)  
+     * Shows ONLY players who have played games and have scores
+     * Optimized for competitive ranking display
      */
     public function leaderboard(Request $request): JsonResponse
     {
@@ -154,7 +202,7 @@ class UserController extends Controller
             $difficulty = $request->get('difficulty');
             $period = $request->get('period', 'all');
             
-            $cacheKey = "leaderboard_users_{$limit}_{$difficulty}_{$period}";
+            $cacheKey = "leaderboard_players_{$limit}_{$difficulty}_{$period}";
             
             $leaderboard = Cache::remember($cacheKey, 600, function () use ($limit, $difficulty, $period) {
                 $query = User::select([
@@ -187,7 +235,7 @@ class UserController extends Controller
                 }
 
                 return $query->groupBy('users.id', 'users.name')
-                    ->having('total_games', '>', 0) // Show users who have played games
+                    ->having('total_games', '>', 0) // ONLY players who have played games
                     ->orderBy('best_score', 'desc')
                     ->orderBy('average_score', 'desc')
                     ->limit($limit)
@@ -218,7 +266,8 @@ class UserController extends Controller
                         'period' => $period,
                     ],
                     'total_entries' => $leaderboard->count(),
-                ]
+                ],
+                'message' => 'Leaderboard retrieved for players with scores'
             ]);
             
         } catch (\Exception $e) {
