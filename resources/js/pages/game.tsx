@@ -187,7 +187,7 @@ function MemoryGameComponent({ user }: { user: { id: number; name: string } }) {
                                     Congratulations!
                                 </h2>
                                 <p className="text-lg text-gray-600 mb-6">
-                                    You completed the game in <strong>{gameState.moves}</strong> moves 
+                                    You completed the game in <strong>{gameState.moves}</strong> moves
                                     and <strong>{Math.floor(gameState.timeElapsed / 60)}:{(gameState.timeElapsed % 60).toString().padStart(2, '0')}</strong>!
                                 </p>
                                 <div className="text-2xl font-bold text-green-600 mb-6">
