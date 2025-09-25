@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Head } from "@inertiajs/react";
+import { Head, Link } from "@inertiajs/react";
 import { motion } from "framer-motion";
 import { useMemoryGame } from "@/hooks/useMemoryGame";
 import GameBoard from "@/components/GameBoard";
@@ -51,6 +51,14 @@ export default function Home() {
                         transition={{ duration: 0.6 }}
                         className="text-center mb-8"
                     >
+                        <div className="flex justify-center mb-4">
+                            <Link
+                                href="/history"
+                                className="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow-md transition-colors duration-200"
+                            >
+                                📊 View Game History
+                            </Link>
+                        </div>
                         <h1 className="text-5xl sm:text-6xl font-extrabold text-indigo-700 mb-4">
                             🐱 Cat Facts Memory Game
                         </h1>
@@ -128,8 +136,8 @@ export default function Home() {
                                                 key={level}
                                                 onClick={() => changeDifficulty(level)}
                                                 className={`px-3 py-2 rounded-lg font-medium transition-all text-sm ${gameState.difficulty === level
-                                                        ? 'bg-indigo-600 text-white shadow-lg'
-                                                        : 'bg-white/80 text-gray-700 hover:bg-white'
+                                                    ? 'bg-indigo-600 text-white shadow-lg'
+                                                    : 'bg-white/80 text-gray-700 hover:bg-white'
                                                     }`}
                                                 whileHover={{ scale: 1.05 }}
                                                 whileTap={{ scale: 0.95 }}
