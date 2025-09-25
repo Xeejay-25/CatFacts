@@ -19,7 +19,8 @@ class GameController extends Controller
     {
         $request->validate([
             'difficulty' => 'required|in:easy,medium,hard',
-            'session_id' => 'nullable|string'
+            'session_id' => 'nullable|string',
+            'user_id' => 'nullable|exists:users,id'
         ]);
 
         $sessionId = $request->session_id ?: Str::uuid()->toString();
@@ -33,7 +34,7 @@ class GameController extends Controller
         };
 
         $game = Game::create([
-            'user_id' => Auth::id(),
+            'user_id' => $request->user_id ?? Auth::id(),
             'session_id' => $sessionId,
             'difficulty' => $difficulty,
             'score' => 0,
