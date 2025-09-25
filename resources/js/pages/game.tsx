@@ -123,17 +123,29 @@ function MemoryGameComponent({ user }: { user: { id: number; name: string } }) {
                                 <h3 className="text-sm font-semibold text-gray-700 mb-3 text-center">Controls</h3>
                                 <div className="space-y-2">
                                     <button
-                                        onClick={startGame}
-                                        disabled={gameState.gameStatus === 'playing'}
-                                        className="w-full px-3 py-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-lg text-xs font-medium transition-all duration-300"
+                                        onClick={gameState.gameStatus === 'playing' ? resetGame : startGame}
+                                        className={`w-full px-3 py-2 text-white rounded-lg text-xs font-medium transition-all duration-300 ${
+                                            gameState.gameStatus === 'idle' 
+                                                ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700' 
+                                                : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700'
+                                        }`}
                                     >
-                                        {gameState.gameStatus === 'idle' ? '🎮 Start Game' : '⏸️ Playing...'}
+                                        {gameState.gameStatus === 'idle' ? '🎮 Start Game' : '🔄 Reset Game'}
                                     </button>
                                     <button
-                                        onClick={resetGame}
-                                        className="w-full px-3 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg text-xs font-medium transition-all duration-300"
+                                        onClick={() => {
+                                            // Clear session data
+                                            sessionStorage.removeItem('selectedUserId');
+                                            sessionStorage.removeItem('selectedUser');
+                                            // Clear browser history to prevent back navigation
+                                            window.history.replaceState(null, '', '/play');
+                                            window.history.pushState(null, '', '/play');
+                                            // Redirect to play page
+                                            router.visit('/play', { replace: true });
+                                        }}
+                                        className="w-full px-3 py-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg text-xs font-medium transition-all duration-300"
                                     >
-                                        🔄 Reset Game
+                                        🚪 Exit Game
                                     </button>
                                     <select
                                         value={gameState.difficulty}
@@ -194,7 +206,7 @@ function MemoryGameComponent({ user }: { user: { id: number; name: string } }) {
                         </div>
 
                         {/* Center Panel - Game Board */}
-                        <div className="lg:col-span-2 flex flex-col min-h-0">
+                        <div className="lg:col-span-2 flex flex-col min-h-0 mr-10">
                             <div className="flex-1 flex items-start justify-center ">
                                 <GameBoard
                                     cards={gameState.cards}
