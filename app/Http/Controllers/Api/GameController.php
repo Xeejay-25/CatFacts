@@ -374,6 +374,7 @@ class GameController extends Controller
      */
     private function clearLeaderboardCache($userId): void
     {
+        // Clear game leaderboard cache
         $difficulties = ['easy', 'medium', 'hard', null];
         $limits = [10, 50]; // Common limit values
         $includeAllValues = [true, false];
@@ -386,6 +387,20 @@ class GameController extends Controller
                         $cacheKey = "leaderboard_{$difficulty}_{$userId}_{$limit}_{$includeAll}_{$orderBy}";
                         Cache::forget($cacheKey);
                     }
+                }
+            }
+        }
+
+        // Clear user leaderboard cache (used by leaderboard page)
+        $userLimits = [20, 100]; // Common user leaderboard limits
+        $userDifficulties = ['easy', 'medium', 'hard', null];
+        $periods = ['day', 'week', 'month', 'all'];
+
+        foreach ($userLimits as $limit) {
+            foreach ($userDifficulties as $difficulty) {
+                foreach ($periods as $period) {
+                    $cacheKey = "leaderboard_players_{$limit}_{$difficulty}_{$period}";
+                    Cache::forget($cacheKey);
                 }
             }
         }
