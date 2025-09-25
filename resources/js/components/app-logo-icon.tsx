@@ -1,6 +1,4 @@
-import { SVGAttributes } from 'react';
-
-export default function AppLogoIcon(props: SVGAttributes<SVGElement>) {
+export default function AppLogoIcon() {
     return (
         <>
             <div className="flex aspect-square size-8 items-center justify-center rounded-md  text-sidebar-primary-foreground">
