@@ -19,7 +19,7 @@ const initialGameState: GameState = {
 // Game session management
 let currentGameId: number | null = null;
 
-export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy') => {
+export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy', userId?: number) => {
     const [gameState, setGameState] = useState<GameState>(() => ({
         ...initialGameState,
         difficulty,
@@ -62,13 +62,18 @@ export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy') =
     // Start a game session on the backend
     const startGameSession = useCallback(async (difficulty: string) => {
         try {
+            const requestBody: { difficulty: string; user_id?: number } = { difficulty };
+            if (userId) {
+                requestBody.user_id = userId;
+            }
+
             const response = await fetch('/api/games', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                 },
-                body: JSON.stringify({ difficulty }),
+                body: JSON.stringify(requestBody),
             });
 
             if (!response.ok) {
@@ -82,7 +87,7 @@ export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy') =
             console.error('Failed to start game session:', error);
             return null;
         }
-    }, []);
+    }, [userId]);
 
     // End a game session on the backend
     const endGameSession = useCallback(async (score: number, moves: number, timeElapsed: number) => {
