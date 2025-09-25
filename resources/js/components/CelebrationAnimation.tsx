@@ -8,7 +8,7 @@ interface CelebrationAnimationProps {
 const CelebrationAnimation: React.FC<CelebrationAnimationProps> = ({ isVisible }) => {
     const emojis = useMemo(() => ['🎉', '✨', '🐱', '🌟', '🎊', '💫'], []);
     const confettiArray = useMemo(() => Array.from({ length: 20 }), []);
-    
+
     if (!isVisible) return null;
 
     return (
