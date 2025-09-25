@@ -1,8 +1,8 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Trophy, Clock, Target, Star } from 'lucide-react';
+import { ArrowLeft, Trophy, Clock, Target, Star, User } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 
 interface Game {
@@ -42,44 +42,86 @@ export default function GameHistory() {
     const [games, setGames] = useState<Game[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedUser, setSelectedUser] = useState<{ id: number; name: string } | null>(null);
+    const [statusFilter, setStatusFilter] = useState<string>('all');
+    const [difficultyFilter, setDifficultyFilter] = useState<string>('all');
 
     useEffect(() => {
         // Get selected user from sessionStorage
         const userId = sessionStorage.getItem('selectedUserId');
         const userJson = sessionStorage.getItem('selectedUser');
 
+        console.log('Loading user from sessionStorage:');
+        console.log('userId:', userId);
+        console.log('userJson:', userJson);
+
         if (userId && userJson) {
             try {
                 const userData = JSON.parse(userJson);
-                setSelectedUser({
+                const user = {
                     id: parseInt(userId),
                     name: userData.name
-                });
+                };
+                console.log('Setting selectedUser:', user);
+                setSelectedUser(user);
+                // Don't set loading to false here - let fetchGameHistory handle it
             } catch (error) {
                 console.error('Error parsing user data:', error);
+                sessionStorage.removeItem('selectedUserId');
+                sessionStorage.removeItem('selectedUser');
+                setLoading(false);
             }
+        } else {
+            console.log('No user data found in sessionStorage');
+            setLoading(false);
         }
     }, []);
 
     const fetchGameHistory = useCallback(async () => {
         if (!selectedUser) return;
 
+        setLoading(true);
         try {
-            const response = await fetch(`/api/games/leaderboard?user_id=${selectedUser.id}&limit=50&include_all=true`);
+            let url = `/api/games/leaderboard?user_id=${selectedUser.id}&limit=50&include_all=true&order_by=date`;
+
+            if (difficultyFilter !== 'all') {
+                url += `&difficulty=${difficultyFilter}`;
+            }
+
+            console.log('Fetching game history for user:', selectedUser);
+            console.log('API URL:', url);
+
+            const response = await fetch(url);
             const data = await response.json();
 
+            console.log('API Response:', data);
+
             if (data.success && data.data && data.data.leaderboard) {
-                setGames(data.data.leaderboard);
+                let filteredGames = data.data.leaderboard;
+
+                console.log('Games from API before status filter:', filteredGames);
+
+                // Apply status filter on frontend since the API doesn't support status filtering for include_all
+                if (statusFilter !== 'all') {
+                    filteredGames = filteredGames.filter((game: Game) => game.status === statusFilter);
+                }
+
+                console.log('Games after filtering:', filteredGames);
+                console.log('Setting games to:', filteredGames.length, 'items');
+
+                setGames(filteredGames);
+            } else {
+                console.log('API response not successful or missing data:', data);
             }
         } catch (error) {
             console.error('Failed to fetch game history:', error);
         } finally {
             setLoading(false);
         }
-    }, [selectedUser]);
+    }, [selectedUser, difficultyFilter, statusFilter]);
 
     useEffect(() => {
         if (selectedUser) {
+            console.log('User selected, fetching game history automatically...');
             fetchGameHistory();
         }
     }, [selectedUser, fetchGameHistory]);
@@ -105,6 +147,15 @@ export default function GameHistory() {
         if (score >= 500) return 'text-yellow-600 dark:text-yellow-400';
         return 'text-gray-600 dark:text-gray-400';
     };
+
+    // Calculate statistics
+    const stats = games.length > 0 ? {
+        totalGames: games.length,
+        completedGames: games.filter(g => g.status === 'won').length,
+        averageScore: Math.round(games.filter(g => g.status === 'won').reduce((sum, g) => sum + g.score, 0) / Math.max(1, games.filter(g => g.status === 'won').length)),
+        bestScore: Math.max(...games.map(g => g.score), 0),
+        totalTime: games.filter(g => g.status === 'won').reduce((sum, g) => sum + g.time_elapsed, 0)
+    } : null;
 
     return (
         <>
@@ -133,107 +184,210 @@ export default function GameHistory() {
                             </div>
                         </div>
 
-                        {/* Loading State */}
-                        {loading && (
-                            <div className="text-center py-12">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-4"></div>
-                                <p className="text-gray-600 dark:text-gray-300">Loading game history...</p>
-                            </div>
-                        )}
-
-                        {/* Empty State */}
-                        {!loading && games.length === 0 && (
+                        {/* No User Selected State */}
+                        {!loading && !selectedUser && (
                             <Card className="text-center py-12">
                                 <CardContent>
-                                    <Trophy className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+                                    <User className="w-16 h-16 mx-auto text-gray-400 mb-4" />
                                     <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                                        No games yet!
+                                        No Player Selected
                                     </h3>
                                     <p className="text-gray-600 dark:text-gray-300 mb-6">
-                                        Complete some memory games to see your history here.
+                                        You need to select a player to view their game history.
                                     </p>
-                                    <Link href="/">
-                                        <Button>
-                                            Start Playing
+                                    <Link href="/play/select">
+                                        <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                                            <User className="w-4 h-4 mr-2" />
+                                            Select Player
                                         </Button>
                                     </Link>
                                 </CardContent>
                             </Card>
                         )}
 
-                        {/* Games List */}
-                        {!loading && games.length > 0 && (
-                            <div className="space-y-4">
-                                {games.map((game) => (
-                                    <Card key={game.id} className="hover:shadow-md transition-shadow">
-                                        <CardHeader className="pb-3">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-3">
-                                                    <CardTitle className="text-lg">
-                                                        {game.player} - Game #{game.id}
-                                                    </CardTitle>
-                                                    <Badge className={difficultyColors[game.difficulty]}>
-                                                        {game.difficulty.charAt(0).toUpperCase() + game.difficulty.slice(1)}
-                                                    </Badge>
-                                                    <Badge className={statusColors[game.status]}>
-                                                        {game.status === 'won' ? 'Completed' : game.status.charAt(0).toUpperCase() + game.status.slice(1)}
-                                                    </Badge>
-                                                </div>
-                                                <CardDescription>
-                                                    {formatDate(game.completed_at || game.created_at)}
-                                                </CardDescription>
+                        {/* User-specific content */}
+                        {selectedUser && (
+                            <>
+                                {/* Statistics */}
+                                {!loading && stats && (
+                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                                        <Card className="p-4">
+                                            <div className="text-center">
+                                                <div className="text-2xl font-bold text-blue-600">{stats.totalGames}</div>
+                                                <div className="text-sm text-gray-600 dark:text-gray-300">Total Games</div>
                                             </div>
-                                        </CardHeader>
+                                        </Card>
+                                        <Card className="p-4">
+                                            <div className="text-center">
+                                                <div className="text-2xl font-bold text-green-600">{stats.completedGames}</div>
+                                                <div className="text-sm text-gray-600 dark:text-gray-300">Completed</div>
+                                            </div>
+                                        </Card>
+                                        <Card className="p-4">
+                                            <div className="text-center">
+                                                <div className="text-2xl font-bold text-purple-600">{stats.bestScore.toLocaleString()}</div>
+                                                <div className="text-sm text-gray-600 dark:text-gray-300">Best Score</div>
+                                            </div>
+                                        </Card>
+                                        <Card className="p-4">
+                                            <div className="text-center">
+                                                <div className="text-2xl font-bold text-yellow-600">{stats.averageScore.toLocaleString()}</div>
+                                                <div className="text-sm text-gray-600 dark:text-gray-300">Avg Score</div>
+                                            </div>
+                                        </Card>
+                                        <Card className="p-4">
+                                            <div className="text-center">
+                                                <div className="text-2xl font-bold text-orange-600">{formatTime(stats.totalTime)}</div>
+                                                <div className="text-sm text-gray-600 dark:text-gray-300">Total Time</div>
+                                            </div>
+                                        </Card>
+                                    </div>
+                                )}
+
+                                {/* Filters */}
+                                {!loading && (
+                                    <Card className="p-4 mb-6">
+                                        <div className="flex flex-wrap gap-4 items-center">
+                                            <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter by:</div>
+
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm text-gray-600 dark:text-gray-400">Status:</span>
+                                                <select
+                                                    value={statusFilter}
+                                                    onChange={(e) => setStatusFilter(e.target.value)}
+                                                    className="px-3 py-1 border rounded text-sm bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
+                                                >
+                                                    <option value="all">All</option>
+                                                    <option value="won">Completed</option>
+                                                    <option value="playing">In Progress</option>
+                                                    <option value="abandoned">Abandoned</option>
+                                                </select>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm text-gray-600 dark:text-gray-400">Difficulty:</span>
+                                                <select
+                                                    value={difficultyFilter}
+                                                    onChange={(e) => setDifficultyFilter(e.target.value)}
+                                                    className="px-3 py-1 border rounded text-sm bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
+                                                >
+                                                    <option value="all">All</option>
+                                                    <option value="easy">Easy</option>
+                                                    <option value="medium">Medium</option>
+                                                    <option value="hard">Hard</option>
+                                                </select>
+                                            </div>
+
+                                            <div className="ml-auto text-sm text-gray-600 dark:text-gray-400">
+                                                Showing {games.length} games
+                                            </div>
+                                        </div>
+                                    </Card>
+                                )}
+
+                                {/* Loading State */}
+                                {loading && (
+                                    <div className="text-center py-12">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-4"></div>
+                                        <p className="text-gray-600 dark:text-gray-300">Loading game history...</p>
+                                    </div>
+                                )}
+
+                                {/* Empty State */}
+                                {!loading && games.length === 0 && (
+                                    <Card className="text-center py-12">
                                         <CardContent>
-                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                {/* Score */}
-                                                <div className="flex items-center gap-2">
-                                                    <Star className="w-4 h-4 text-yellow-500" />
-                                                    <div>
-                                                        <p className="text-sm text-gray-600 dark:text-gray-300">Score</p>
-                                                        <p className={`font-semibold ${getScoreColor(game.score)}`}>
-                                                            {game.score.toLocaleString()}
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                {/* Time */}
-                                                <div className="flex items-center gap-2">
-                                                    <Clock className="w-4 h-4 text-blue-500" />
-                                                    <div>
-                                                        <p className="text-sm text-gray-600 dark:text-gray-300">Time</p>
-                                                        <p className="font-semibold text-gray-900 dark:text-white">
-                                                            {formatTime(game.time_elapsed)}
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                {/* Moves */}
-                                                <div className="flex items-center gap-2">
-                                                    <Target className="w-4 h-4 text-green-500" />
-                                                    <div>
-                                                        <p className="text-sm text-gray-600 dark:text-gray-300">Moves</p>
-                                                        <p className="font-semibold text-gray-900 dark:text-white">
-                                                            {game.moves}
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                {/* Facts Collected */}
-                                                <div className="flex items-center gap-2">
-                                                    <Trophy className="w-4 h-4 text-purple-500" />
-                                                    <div>
-                                                        <p className="text-sm text-gray-600 dark:text-gray-300">Facts</p>
-                                                        <p className="font-semibold text-gray-900 dark:text-white">
-                                                            {game.facts_collected}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                            <Trophy className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+                                            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                                                No games yet!
+                                            </h3>
+                                            <p className="text-gray-600 dark:text-gray-300 mb-6">
+                                                Complete some memory games to see your history here.
+                                            </p>
+                                            <Link href="/">
+                                                <Button>
+                                                    Start Playing
+                                                </Button>
+                                            </Link>
                                         </CardContent>
                                     </Card>
-                                ))}
-                            </div>
+                                )}
+
+                                {/* Games List */}
+                                {!loading && games.length > 0 && (
+                                    <div className="space-y-4">
+                                        {games.map((game) => (
+                                            <Card key={game.id} className="hover:shadow-md transition-shadow">
+                                                <CardHeader className="pb-3">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-3">
+                                                            <CardTitle className="text-lg">
+                                                                {game.player} - Game #{game.id}
+                                                            </CardTitle>
+                                                            <Badge className={difficultyColors[game.difficulty]}>
+                                                                {game.difficulty.charAt(0).toUpperCase() + game.difficulty.slice(1)}
+                                                            </Badge>
+                                                            <Badge className={statusColors[game.status]}>
+                                                                {game.status === 'won' ? 'Completed' : game.status.charAt(0).toUpperCase() + game.status.slice(1)}
+                                                            </Badge>
+                                                        </div>
+                                                        <CardDescription>
+                                                            {formatDate(game.completed_at || game.created_at)}
+                                                        </CardDescription>
+                                                    </div>
+                                                </CardHeader>
+                                                <CardContent>
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                        {/* Score */}
+                                                        <div className="flex items-center gap-2">
+                                                            <Star className="w-4 h-4 text-yellow-500" />
+                                                            <div>
+                                                                <p className="text-sm text-gray-600 dark:text-gray-300">Score</p>
+                                                                <p className={`font-semibold ${getScoreColor(game.score)}`}>
+                                                                    {game.score.toLocaleString()}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Time */}
+                                                        <div className="flex items-center gap-2">
+                                                            <Clock className="w-4 h-4 text-blue-500" />
+                                                            <div>
+                                                                <p className="text-sm text-gray-600 dark:text-gray-300">Time</p>
+                                                                <p className="font-semibold text-gray-900 dark:text-white">
+                                                                    {formatTime(game.time_elapsed)}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Moves */}
+                                                        <div className="flex items-center gap-2">
+                                                            <Target className="w-4 h-4 text-green-500" />
+                                                            <div>
+                                                                <p className="text-sm text-gray-600 dark:text-gray-300">Moves</p>
+                                                                <p className="font-semibold text-gray-900 dark:text-white">
+                                                                    {game.moves}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Facts Collected */}
+                                                        <div className="flex items-center gap-2">
+                                                            <Trophy className="w-4 h-4 text-purple-500" />
+                                                            <div>
+                                                                <p className="text-sm text-gray-600 dark:text-gray-300">Facts</p>
+                                                                <p className="font-semibold text-gray-900 dark:text-white">
+                                                                    {game.facts_collected}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        ))}
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
                 </div>
