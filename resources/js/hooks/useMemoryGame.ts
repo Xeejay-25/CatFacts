@@ -16,7 +16,10 @@ const initialGameState: GameState = {
     currentFact: null,
 };
 
-export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy') => {
+// Game session management
+let currentGameId: number | null = null;
+
+export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy', userId?: number) => {
     const [gameState, setGameState] = useState<GameState>(() => ({
         ...initialGameState,
         difficulty,
@@ -39,8 +42,101 @@ export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy') =
         return () => clearInterval(interval);
     }, [gameState.gameStatus]);
 
+    // Fetch cat fact from backend
+    const fetchCatFact = useCallback(async (): Promise<string> => {
+        try {
+            const response = await fetch('/api/cat-facts/random');
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.fact;
+        } catch (error) {
+            console.error('Failed to fetch cat fact from backend:', error);
+            return 'Cats are amazing creatures that bring joy to millions of people worldwide! 🐱';
+        }
+    }, []);
+
+    // Start a game session on the backend
+    const startGameSession = useCallback(async (difficulty: string) => {
+        try {
+            const requestBody: { difficulty: string; user_id?: number } = { difficulty };
+            if (userId) {
+                requestBody.user_id = userId;
+            }
+
+            const response = await fetch('/api/games', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify(requestBody),
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            if (data.success && data.game) {
+                currentGameId = data.game.id;
+                console.log('Game session started:', data.game);
+                return data;
+            } else {
+                throw new Error('Invalid response format');
+            }
+        } catch (error) {
+            console.error('Failed to start game session:', error);
+            return null;
+        }
+    }, [userId]);
+
+    // End a game session on the backend
+    const endGameSession = useCallback(async (score: number, moves: number, timeElapsed: number, status: string = 'won') => {
+        if (!currentGameId) {
+            console.warn('No current game ID to end session');
+            return;
+        }
+
+        console.log('Ending game session:', { currentGameId, score, moves, timeElapsed, status });
+
+        try {
+            const response = await fetch(`/api/games/${currentGameId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({
+                    score,
+                    moves,
+                    time_elapsed: timeElapsed,
+                    matched_pairs: Math.floor(score / 100) || 0, // Estimate matched pairs from score
+                    status: status,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('Game session ended successfully:', data);
+            currentGameId = null;
+            return data;
+        } catch (error) {
+            console.error('Failed to end game session:', error);
+        }
+    }, []);
+
     // Start game
-    const startGame = useCallback(() => {
+    const startGame = useCallback(async () => {
+        // Start backend game session
+        await startGameSession(gameState.difficulty);
+
         setGameState(prev => ({
             ...prev,
             gameStatus: 'playing',
@@ -56,37 +152,71 @@ export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy') =
                 isMatched: false,
             })),
         }));
-    }, []);
+    }, [gameState.difficulty, startGameSession]);
 
     // Reset game
-    const resetGame = useCallback(() => {
+    const resetGame = useCallback(async () => {
+        // If there's an active game session, mark it as abandoned
+        if (currentGameId && gameState.gameStatus === 'playing') {
+            try {
+                await fetch(`/api/games/${currentGameId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    },
+                    body: JSON.stringify({
+                        status: 'abandoned',
+                        score: gameState.score,
+                        moves: gameState.moves,
+                        time_elapsed: gameState.timeElapsed,
+                        matched_pairs: gameState.matchedPairs,
+                    }),
+                });
+                currentGameId = null;
+            } catch (error) {
+                console.error('Failed to abandon game session:', error);
+            }
+        }
+
         setGameState(prev => ({
             ...initialGameState,
             difficulty: prev.difficulty,
             cards: generateCards(prev.difficulty),
         }));
-    }, []);
+    }, [gameState.gameStatus, gameState.score, gameState.moves, gameState.timeElapsed, gameState.matchedPairs]);
 
     // Change difficulty
-    const changeDifficulty = useCallback((newDifficulty: 'easy' | 'medium' | 'hard') => {
+    const changeDifficulty = useCallback(async (newDifficulty: 'easy' | 'medium' | 'hard') => {
+        // If there's an active game session, mark it as abandoned
+        if (currentGameId && gameState.gameStatus === 'playing') {
+            try {
+                await fetch(`/api/games/${currentGameId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    },
+                    body: JSON.stringify({
+                        status: 'abandoned',
+                        score: gameState.score,
+                        moves: gameState.moves,
+                        time_elapsed: gameState.timeElapsed,
+                        matched_pairs: gameState.matchedPairs,
+                    }),
+                });
+                currentGameId = null;
+            } catch (error) {
+                console.error('Failed to abandon game session:', error);
+            }
+        }
+
         setGameState(({
             ...initialGameState,
             difficulty: newDifficulty,
             cards: generateCards(newDifficulty),
         }));
-    }, []);
-
-    // Fetch cat fact
-    const fetchCatFact = useCallback(async (): Promise<string> => {
-        try {
-            const response = await fetch('https://catfact.ninja/fact');
-            const data = await response.json();
-            return data.fact;
-        } catch (error) {
-            console.error('Failed to fetch cat fact:', error);
-            return 'Cats are amazing creatures that bring joy to millions of people worldwide! 🐱';
-        }
-    }, []);
+    }, [gameState.gameStatus, gameState.score, gameState.moves, gameState.timeElapsed, gameState.matchedPairs]);
 
     // Show cat fact reward
     const showCatFactReward = useCallback(async () => {
@@ -159,6 +289,12 @@ export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy') =
                         ? calculateScore(newMoves, prev.timeElapsed, prev.difficulty)
                         : prev.score;
 
+                    // End game session if won
+                    if (isGameWon) {
+                        console.log('Game won! Ending session with:', { score: newScore, moves: newMoves, time: prev.timeElapsed });
+                        endGameSession(newScore, newMoves, prev.timeElapsed, 'won');
+                    }
+
                     return {
                         ...prev,
                         cards: newCards,
@@ -171,7 +307,7 @@ export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy') =
                 });
             }, 1000);
         }
-    }, [gameState.cards, gameState.selectedCards, gameState.gameStatus, showCatFactReward]);
+    }, [gameState.cards, gameState.selectedCards, gameState.gameStatus, showCatFactReward, endGameSession]);
 
     return {
         gameState,
