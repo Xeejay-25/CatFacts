@@ -81,8 +81,13 @@ export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy', u
             }
 
             const data = await response.json();
-            currentGameId = data.game.id;
-            return data;
+            if (data.success && data.game) {
+                currentGameId = data.game.id;
+                console.log('Game session started:', data.game);
+                return data;
+            } else {
+                throw new Error('Invalid response format');
+            }
         } catch (error) {
             console.error('Failed to start game session:', error);
             return null;
@@ -90,8 +95,13 @@ export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy', u
     }, [userId]);
 
     // End a game session on the backend
-    const endGameSession = useCallback(async (score: number, moves: number, timeElapsed: number) => {
-        if (!currentGameId) return;
+    const endGameSession = useCallback(async (score: number, moves: number, timeElapsed: number, status: string = 'won') => {
+        if (!currentGameId) {
+            console.warn('No current game ID to end session');
+            return;
+        }
+
+        console.log('Ending game session:', { currentGameId, score, moves, timeElapsed, status });
 
         try {
             const response = await fetch(`/api/games/${currentGameId}`, {
@@ -104,6 +114,8 @@ export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy', u
                     score,
                     moves,
                     time_elapsed: timeElapsed,
+                    matched_pairs: Math.floor(score / 100) || 0, // Estimate matched pairs from score
+                    status: status,
                 }),
             });
 
@@ -112,6 +124,7 @@ export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy', u
             }
 
             const data = await response.json();
+            console.log('Game session ended successfully:', data);
             currentGameId = null;
             return data;
         } catch (error) {
@@ -278,7 +291,8 @@ export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy', u
 
                     // End game session if won
                     if (isGameWon) {
-                        endGameSession(newScore, newMoves, prev.timeElapsed);
+                        console.log('Game won! Ending session with:', { score: newScore, moves: newMoves, time: prev.timeElapsed });
+                        endGameSession(newScore, newMoves, prev.timeElapsed, 'won');
                     }
 
                     return {
