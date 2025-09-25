@@ -47,7 +47,7 @@ export default function GameHistory() {
         try {
             const response = await fetch('/api/games/leaderboard?include_all=true&limit=50');
             const data: LeaderboardResponse = await response.json();
-            
+
             if (data.success) {
                 setGames(data.leaderboard);
             }
@@ -56,7 +56,7 @@ export default function GameHistory() {
         } finally {
             setLoading(false);
         }
-    };    const formatTime = (seconds: number) => {
+    }; const formatTime = (seconds: number) => {
         const minutes = Math.floor(seconds / 60);
         const secs = seconds % 60;
         return `${minutes}:${secs.toString().padStart(2, '0')}`;
