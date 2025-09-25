@@ -23,6 +23,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 // User Management Routes
 Route::prefix('users')->group(function () {
+    Route::get('/', [UserController::class, 'index']); // Get all users for selection
     Route::get('stats', [UserController::class, 'stats']);
     Route::get('leaderboard', [UserController::class, 'leaderboard']);
     Route::post('/', [UserController::class, 'store']);
