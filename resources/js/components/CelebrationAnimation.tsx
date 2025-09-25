@@ -6,10 +6,10 @@ interface CelebrationAnimationProps {
 }
 
 const CelebrationAnimation: React.FC<CelebrationAnimationProps> = ({ isVisible }) => {
-    if (!isVisible) return null;
-
     const emojis = useMemo(() => ['🎉', '✨', '🐱', '🌟', '🎊', '💫'], []);
     const confettiArray = useMemo(() => Array.from({ length: 20 }), []);
+    
+    if (!isVisible) return null;
 
     return (
         <div className="fixed inset-0 pointer-events-none z-40">
