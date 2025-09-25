@@ -83,7 +83,7 @@ class GameController extends Controller
 
         return response()->json([
             'success' => true,
-            'game' => $game->fresh(),
+            'game' => $game,
         ]);
     }
 

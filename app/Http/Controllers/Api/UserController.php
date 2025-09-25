@@ -17,6 +17,8 @@ class UserController extends Controller
      */
     public function stats(): JsonResponse
     {
+        $totalGames = Game::count();
+        
         $users = User::withCount([
             'games as games_played',
             'games as completed_games' => function ($query) {
@@ -34,7 +36,7 @@ class UserController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'games_played' => $user->games_played ?? 0,
-                'total_score' => $user->total_score ?? 0,
+                'total_score' => (int) ($user->total_score ?? 0),
                 'best_score' => $user->best_score ?? 0,
                 'average_time' => round($user->average_time ?? 0),
                 'created_at' => $user->created_at->toISOString(),
@@ -44,7 +46,7 @@ class UserController extends Controller
         return response()->json([
             'success' => true,
             'total_users' => $users->count(),
-            'total_games' => Game::count(),
+            'total_games' => $totalGames,
             'users' => $users,
         ]);
     }
