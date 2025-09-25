@@ -46,11 +46,11 @@ export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy') =
     const fetchCatFact = useCallback(async (): Promise<string> => {
         try {
             const response = await fetch('/api/cat-facts/random');
-            
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            
+
             const data = await response.json();
             return data.fact;
         } catch (error) {
