@@ -11,7 +11,7 @@ import ApiService from '@/services/api';
 export default function Leaderboard() {
     const [topGames, setTopGames] = useState<LeaderboardEntry[]>([]);
     const [topPlayers, setTopPlayers] = useState<UserStats[]>([]);
-    const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
+    const [selectedDifficulty, setSelectedDifficulty] = useState<string>('easy');
     const [selectedPeriod, setSelectedPeriod] = useState<string>('all');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -23,17 +23,13 @@ export default function Leaderboard() {
         try {
             // Fetch top games
             const gamesFilters: any = { limit: 10 };
-            if (selectedDifficulty !== 'all') {
-                gamesFilters.difficulty = selectedDifficulty;
-            }
+            gamesFilters.difficulty = selectedDifficulty;
 
             const gamesResponse = await ApiService.getLeaderboard(gamesFilters);
 
             // Fetch top players
             const playersFilters: any = { limit: 20 };
-            if (selectedDifficulty !== 'all') {
-                playersFilters.difficulty = selectedDifficulty;
-            }
+            playersFilters.difficulty = selectedDifficulty;
             if (selectedPeriod !== 'all') {
                 playersFilters.period = selectedPeriod;
             }
@@ -159,7 +155,7 @@ export default function Leaderboard() {
 
                                             {/* Difficulty Filter */}
                                             <div className="flex gap-2 mt-4">
-                                                {['all', 'easy', 'medium', 'hard'].map((difficulty) => (
+                                                {['easy', 'medium', 'hard'].map((difficulty) => (
                                                     <Button
                                                         key={difficulty}
                                                         size="sm"
