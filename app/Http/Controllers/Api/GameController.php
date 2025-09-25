@@ -5,9 +5,13 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Game;
 use App\Models\CatFact;
+use App\Http\Requests\StartGameRequest;
+use App\Http\Requests\UpdateGameRequest;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class GameController extends Controller
@@ -15,74 +19,115 @@ class GameController extends Controller
     /**
      * Start a new game session
      */
-    public function start(Request $request): JsonResponse
+    public function start(StartGameRequest $request): JsonResponse
     {
-        $request->validate([
-            'difficulty' => 'required|in:easy,medium,hard',
-            'session_id' => 'nullable|string',
-            'user_id' => 'nullable|exists:users,id'
-        ]);
+        try {
+            DB::beginTransaction();
+            
+            $sessionId = $request->session_id ?: Str::uuid()->toString();
+            $difficulty = $request->difficulty;
+            $userId = $request->user_id ?? Auth::id();
 
-        $sessionId = $request->session_id ?: Str::uuid()->toString();
-        $difficulty = $request->difficulty;
+            // Calculate total pairs based on difficulty
+            $totalPairs = Game::getTotalPairsForDifficulty($difficulty);
 
-        // Calculate total pairs based on difficulty
-        $totalPairs = match($difficulty) {
-            'easy' => 8,
-            'medium' => 12,
-            'hard' => 18,
-        };
+            $game = Game::create([
+                'user_id' => $userId,
+                'session_id' => $sessionId,
+                'difficulty' => $difficulty,
+                'score' => 0,
+                'moves' => 0,
+                'time_elapsed' => 0,
+                'matched_pairs' => 0,
+                'total_pairs' => $totalPairs,
+                'status' => 'playing',
+            ]);
 
-        $game = Game::create([
-            'user_id' => $request->user_id ?? Auth::id(),
-            'session_id' => $sessionId,
-            'difficulty' => $difficulty,
-            'score' => 0,
-            'moves' => 0,
-            'time_elapsed' => 0,
-            'matched_pairs' => 0,
-            'total_pairs' => $totalPairs,
-            'status' => 'playing',
-        ]);
+            DB::commit();
 
-        return response()->json([
-            'success' => true,
-            'game' => $game,
-            'session_id' => $sessionId,
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'game' => $game->only([
+                        'id', 'session_id', 'difficulty', 'score', 'moves', 
+                        'time_elapsed', 'matched_pairs', 'total_pairs', 'status'
+                    ]),
+                    'session_id' => $sessionId,
+                ],
+                'message' => 'Game started successfully'
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollback();
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to start game',
+                'error' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
+        }
     }
 
     /**
      * Update game progress
      */
-    public function update(Request $request, $gameId): JsonResponse
+    public function update(UpdateGameRequest $request, $gameId): JsonResponse
     {
-        $request->validate([
-            'score' => 'sometimes|integer|min:0',
-            'moves' => 'sometimes|integer|min:0',
-            'time_elapsed' => 'sometimes|integer|min:0',
-            'matched_pairs' => 'sometimes|integer|min:0',
-            'status' => 'sometimes|in:playing,won,abandoned',
-        ]);
+        try {
+            $game = $request->game_model ?? Game::findOrFail($gameId);
+            
+            // Prevent updating completed games
+            if ($game->isCompleted()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot update a completed game'
+                ], 422);
+            }
 
-        $game = Game::findOrFail($gameId);
+            DB::beginTransaction();
 
-        // For now, allow all updates to games (we can add more security later)
-        // This is needed because users selected from sessionStorage aren't authenticated
+            $updateData = $request->validated();
+            
+            // Auto-complete game if all pairs are matched
+            if (isset($updateData['matched_pairs']) && $updateData['matched_pairs'] >= $game->total_pairs) {
+                $updateData['status'] = 'won';
+                $updateData['completed_at'] = now();
+                
+                // Calculate optimized score if not provided
+                if (!isset($updateData['score'])) {
+                    $updateData['score'] = Game::calculateScore(
+                        $updateData['matched_pairs'],
+                        $updateData['moves'] ?? $game->moves,
+                        $updateData['time_elapsed'] ?? $game->time_elapsed,
+                        $game->difficulty
+                    );
+                }
+            }
 
-        $game->update($request->only([
-            'score', 'moves', 'time_elapsed', 'matched_pairs', 'status'
-        ]));
+            $game->update($updateData);
+            DB::commit();
 
-        if ($request->status === 'won') {
-            $game->completed_at = now();
-            $game->save();
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'game' => $game->fresh()->only([
+                        'id', 'session_id', 'difficulty', 'score', 'moves',
+                        'time_elapsed', 'matched_pairs', 'total_pairs', 'status',
+                        'completed_at'
+                    ])
+                ],
+                'message' => $game->isCompleted() ? 'Game completed!' : 'Game updated successfully'
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollback();
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update game',
+                'error' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
         }
-
-        return response()->json([
-            'success' => true,
-            'game' => $game,
-        ]);
     }
 
     /**
@@ -90,33 +135,55 @@ class GameController extends Controller
      */
     public function addFact(Request $request, $gameId): JsonResponse
     {
-        $game = Game::findOrFail($gameId);
+        try {
+            $game = $request->game_model ?? Game::findOrFail($gameId);
 
-        // For now, allow all updates (we can add more security later)
+            // Get a random cat fact that hasn't been collected yet
+            $excludeIds = $game->collected_facts ?? [];
+            $fact = CatFact::active()
+                ->when(!empty($excludeIds), function ($query) use ($excludeIds) {
+                    return $query->whereNotIn('id', $excludeIds);
+                })
+                ->inRandomOrder()
+                ->first(['id', 'fact', 'length']);
 
-        // Get a random cat fact
-        $fact = CatFact::random();
+            if (!$fact) {
+                // If no new facts available, get any random fact
+                $fact = CatFact::random();
+            }
 
-        if (!$fact) {
+            if (!$fact) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No cat facts available'
+                ], 404);
+            }
+
+            DB::beginTransaction();
+            
+            // Add fact to collected facts
+            $game->addCollectedFact($fact->id);
+            
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'fact' => $fact->only(['id', 'fact']),
+                    'facts_collected' => count($game->fresh()->collected_facts ?? [])
+                ],
+                'message' => 'Cat fact collected!'
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollback();
+            
             return response()->json([
                 'success' => false,
-                'message' => 'No cat facts available'
-            ], 404);
+                'message' => 'Failed to add cat fact',
+                'error' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
         }
-
-        // Add fact to collected facts
-        $collectedFacts = $game->collected_facts ?? [];
-        if (!in_array($fact->id, $collectedFacts)) {
-            $collectedFacts[] = $fact->id;
-            $game->collected_facts = $collectedFacts;
-            $game->save();
-        }
-
-        return response()->json([
-            'success' => true,
-            'fact' => $fact->fact,
-            'game' => $game->fresh(),
-        ]);
     }
 
     /**
@@ -124,58 +191,84 @@ class GameController extends Controller
      */
     public function show(Request $request, $gameId): JsonResponse
     {
-        $game = Game::with('user')->findOrFail($gameId);
+        try {
+            $game = Game::with(['user:id,name'])
+                ->findOrFail($gameId);
 
-        // Include collected cat facts
-        $collectedFacts = $game->getCollectedCatFacts();
+            // Get collected cat facts
+            $collectedFacts = $game->getCollectedCatFacts();
 
-        return response()->json([
-            'success' => true,
-            'game' => $game,
-            'collected_facts' => $collectedFacts->map(function ($fact) {
-                return [
-                    'id' => $fact->id,
-                    'fact' => $fact->fact,
-                ];
-            }),
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'game' => [
+                        'id' => $game->id,
+                        'user' => $game->user ? $game->user->only(['id', 'name']) : null,
+                        'session_id' => $game->session_id,
+                        'difficulty' => $game->difficulty,
+                        'score' => $game->score,
+                        'moves' => $game->moves,
+                        'time_elapsed' => $game->time_elapsed,
+                        'matched_pairs' => $game->matched_pairs,
+                        'total_pairs' => $game->total_pairs,
+                        'status' => $game->status,
+                        'completed_at' => $game->completed_at,
+                        'created_at' => $game->created_at,
+                        'facts_collected_count' => $collectedFacts->count(),
+                    ],
+                    'collected_facts' => $collectedFacts->map(function ($fact) {
+                        return $fact->only(['id', 'fact']);
+                    }),
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Game not found',
+                'error' => config('app.debug') ? $e->getMessage() : null
+            ], 404);
+        }
     }
 
     /**
-     * Get leaderboard
+     * Get leaderboard with optimized queries
      */
     public function leaderboard(Request $request): JsonResponse
     {
-        $difficulty = $request->get('difficulty');
-        $userId = $request->get('user_id');
-        $limit = $request->get('limit', 10);
-        $includeAll = $request->get('include_all', false);
+        try {
+            $difficulty = $request->get('difficulty');
+            $userId = $request->get('user_id');
+            $limit = min($request->get('limit', 10), 50); // Cap at 50
+            $includeAll = $request->boolean('include_all', false);
 
-        $query = Game::with('user');
+            $cacheKey = "leaderboard_{$difficulty}_{$userId}_{$limit}_{$includeAll}";
+            
+            $leaderboard = Cache::remember($cacheKey, 300, function () use ($difficulty, $userId, $limit, $includeAll) {
+                $query = Game::with(['user:id,name']);
 
-        // Filter by user if provided
-        if ($userId) {
-            $query->where('user_id', $userId);
-        }
+                // Filter by user if provided
+                if ($userId) {
+                    $query->where('user_id', $userId);
+                }
 
-        // If include_all is false (default), only show completed games
-        if (!$includeAll) {
-            $query->completed();
-        }
+                // If include_all is false (default), only show completed games
+                if (!$includeAll) {
+                    $query->completed();
+                }
 
-        $query->orderBy('score', 'desc')
-              ->orderBy('time_elapsed', 'asc')
-              ->limit($limit);
+                if ($difficulty) {
+                    $query->byDifficulty($difficulty);
+                }
 
-        if ($difficulty) {
-            $query->byDifficulty($difficulty);
-        }
+                return $query->orderBy('score', 'desc')
+                    ->orderBy('time_elapsed', 'asc')
+                    ->limit($limit)
+                    ->get(['id', 'user_id', 'score', 'moves', 'time_elapsed', 
+                           'difficulty', 'status', 'completed_at', 'created_at', 'collected_facts']);
+            });
 
-        $games = $query->get();
-
-        return response()->json([
-            'success' => true,
-            'leaderboard' => $games->map(function ($game) {
+            $formattedLeaderboard = $leaderboard->map(function ($game) {
                 return [
                     'id' => $game->id,
                     'player' => $game->user ? $game->user->name : 'Anonymous',
@@ -188,8 +281,29 @@ class GameController extends Controller
                     'created_at' => $game->created_at,
                     'facts_collected' => count($game->collected_facts ?? []),
                 ];
-            }),
-        ]);
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'leaderboard' => $formattedLeaderboard,
+                    'total_entries' => $formattedLeaderboard->count(),
+                    'filters' => [
+                        'difficulty' => $difficulty,
+                        'user_id' => $userId,
+                        'include_all' => $includeAll,
+                        'limit' => $limit,
+                    ]
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch leaderboard',
+                'error' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
+        }
     }
 
     /**
@@ -197,17 +311,46 @@ class GameController extends Controller
      */
     public function history(Request $request): JsonResponse
     {
-        if (!Auth::check()) {
-            return response()->json(['error' => 'Authentication required'], 401);
+        try {
+            if (!Auth::check()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Authentication required'
+                ], 401);
+            }
+
+            $perPage = min($request->get('per_page', 10), 50); // Cap at 50
+            $difficulty = $request->get('difficulty');
+            $status = $request->get('status');
+
+            $query = Game::where('user_id', Auth::id());
+            
+            if ($difficulty) {
+                $query->byDifficulty($difficulty);
+            }
+            
+            if ($status) {
+                $query->where('status', $status);
+            }
+
+            $games = $query->orderBy('created_at', 'desc')
+                ->paginate($perPage, [
+                    'id', 'difficulty', 'score', 'moves', 'time_elapsed',
+                    'matched_pairs', 'total_pairs', 'status', 'completed_at',
+                    'created_at', 'collected_facts'
+                ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $games,
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch game history',
+                'error' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
         }
-
-        $games = Game::where('user_id', Auth::id())
-            ->orderBy('created_at', 'desc')
-            ->paginate(10);
-
-        return response()->json([
-            'success' => true,
-            'games' => $games,
-        ]);
     }
 }
