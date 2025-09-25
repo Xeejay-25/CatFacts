@@ -137,22 +137,68 @@ export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy') =
     }, [gameState.difficulty, startGameSession]);
 
     // Reset game
-    const resetGame = useCallback(() => {
+    const resetGame = useCallback(async () => {
+        // If there's an active game session, mark it as abandoned
+        if (currentGameId && gameState.gameStatus === 'playing') {
+            try {
+                await fetch(`/api/games/${currentGameId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    },
+                    body: JSON.stringify({
+                        status: 'abandoned',
+                        score: gameState.score,
+                        moves: gameState.moves,
+                        time_elapsed: gameState.timeElapsed,
+                        matched_pairs: gameState.matchedPairs,
+                    }),
+                });
+                currentGameId = null;
+            } catch (error) {
+                console.error('Failed to abandon game session:', error);
+            }
+        }
+
         setGameState(prev => ({
             ...initialGameState,
             difficulty: prev.difficulty,
             cards: generateCards(prev.difficulty),
         }));
-    }, []);
+    }, [gameState.gameStatus, gameState.score, gameState.moves, gameState.timeElapsed, gameState.matchedPairs]);
 
     // Change difficulty
-    const changeDifficulty = useCallback((newDifficulty: 'easy' | 'medium' | 'hard') => {
+    const changeDifficulty = useCallback(async (newDifficulty: 'easy' | 'medium' | 'hard') => {
+        // If there's an active game session, mark it as abandoned
+        if (currentGameId && gameState.gameStatus === 'playing') {
+            try {
+                await fetch(`/api/games/${currentGameId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    },
+                    body: JSON.stringify({
+                        status: 'abandoned',
+                        score: gameState.score,
+                        moves: gameState.moves,
+                        time_elapsed: gameState.timeElapsed,
+                        matched_pairs: gameState.matchedPairs,
+                    }),
+                });
+                currentGameId = null;
+            } catch (error) {
+                console.error('Failed to abandon game session:', error);
+            }
+        }
+
         setGameState(({
             ...initialGameState,
             difficulty: newDifficulty,
             cards: generateCards(newDifficulty),
         }));
-    }, []);
+    }, [gameState.gameStatus, gameState.score, gameState.moves, gameState.timeElapsed, gameState.matchedPairs]);
 
     // Show cat fact reward
     const showCatFactReward = useCallback(async () => {
