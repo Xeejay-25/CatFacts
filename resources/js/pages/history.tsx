@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Trophy, Clock, Target, Star } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface Game {
     id: number;
@@ -58,13 +58,7 @@ export default function GameHistory() {
         }
     }, []);
 
-    useEffect(() => {
-        if (selectedUser) {
-            fetchGameHistory();
-        }
-    }, [selectedUser]);
-
-    const fetchGameHistory = async () => {
+    const fetchGameHistory = useCallback(async () => {
         if (!selectedUser) return;
 
         try {
@@ -79,7 +73,13 @@ export default function GameHistory() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [selectedUser]);
+
+    useEffect(() => {
+        if (selectedUser) {
+            fetchGameHistory();
+        }
+    }, [selectedUser, fetchGameHistory]);
 
     const formatTime = (seconds: number) => {
         const minutes = Math.floor(seconds / 60);
