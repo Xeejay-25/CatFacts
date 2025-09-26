@@ -18,24 +18,24 @@ const GameBoard: React.FC<GameBoardProps> = ({
     isDisabled
 }) => {
     const { gridCols } = getGridConfig(difficulty);
-    
+
     // Adjust card size and spacing based on difficulty
     const getCardSizing = () => {
         switch (difficulty) {
             case 'hard':
                 return {
-                    maxWidth: `${gridCols * 110}px`, // Smaller cards for 6x6 grid
-                    gap: 'gap-2'
+                    maxWidth: `${gridCols * 90}px`, // Smaller cards for 6x6 grid
+                    gap: 'gap-2 mt-15',
                 };
             case 'medium':
                 return {
-                    maxWidth: `${gridCols * 110}px`, // Medium cards
-                    gap: 'gap-3'
+                    maxWidth: `${gridCols * 100}px`, // Medium cards
+                    gap: 'gap-3 mt-5'
                 };
             default: // easy
                 return {
                     maxWidth: `${gridCols * 120}px`, // Larger cards for easy
-                    gap: 'gap-3 sm:gap-4'
+                    gap: 'gap-3 sm:gap-4 mt-20'
                 };
         }
     };
