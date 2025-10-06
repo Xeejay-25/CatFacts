@@ -47,149 +47,185 @@ function MemoryGameComponent({ user }: { user: { id: number; name: string } }) {
     return (
         <>
             <Head title="Cat Facts Memory Game" />
-            <div className="min-h-screen bg-gradient-to-br from-purple-200 via-indigo-200 to-blue-200">
-                <div className="container mx-auto px-4 py-8">
-                    {/* Header */}
+            <div className="h-screen bg-gradient-to-br from-purple-200 via-indigo-200 to-blue-200 overflow-hidden">
+                <div className="h-full flex flex-col p-2">
+                    {/* Compact Header */}
                     <motion.div
                         initial={{ opacity: 0, y: -20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6 }}
-                        className="text-center mb-8"
+                        className="flex justify-between items-center mb-2"
                     >
-                        <div className="flex justify-center mb-4 space-x-4">
-                            <div className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg shadow-md">
-                                🎮 Playing as: <strong className="ml-2">{user.name}</strong>
+                        <div className="flex items-center gap-2 ml-3.5">
+                            <h1 className="text-4xl font-bold">
+                                🐱 <span className="bg-gradient-to-r from-yellow-300 via-pink-600 to-blue-600 bg-clip-text text-transparent">Cat Facts Memory</span>
+                            </h1>
+                            <div className="text-1xl px-2 py-1 bg-green-500 text-white rounded-full font-medium">
+                                {user.name}
                             </div>
+                        </div>
+                        <div className="flex gap-2">
                             <Link
                                 href="/play/select"
-                                className="inline-flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium rounded-lg shadow-md transition-colors"
+                                className="px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white text-l font-medium rounded-md transition-colors shadow-md"
                             >
-                                🔄 Switch Player
+                                Switch
                             </Link>
                             <Link
                                 href="/history"
-                                className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg shadow-md transition-colors"
+                                className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-l font-medium rounded-md transition-colors shadow-md"
                             >
-                                📊 History
+                                History
                             </Link>
                         </div>
-                        <h1 className="text-4xl font-bold text-gray-800 mb-2">
-                            Cat Facts Memory Game
-                        </h1>
-                        <p className="text-lg text-gray-600">
-                            Match the cards to learn fun facts about cats!
-                        </p>
                     </motion.div>
 
-                    {/* Game Stats */}
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.5 }}
-                        className="bg-white rounded-xl shadow-lg p-6 mb-8"
-                    >
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                            <div className="bg-blue-50 rounded-lg p-4">
-                                <div className="text-2xl font-bold text-blue-600">
-                                    {gameState.score}
+                    {/* Main Game Grid Layout */}
+                    <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-3 min-h-0">
+                        
+                        {/* Left Panel - Stats & Controls */}
+                        <div className="lg:col-span-1 space-y-3 ml-3">
+                            {/* Game Stats */}
+                            <motion.div
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ duration: 0.5 }}
+                                className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg p-4"
+                            >
+                                <h3 className="text-sm font-semibold text-gray-700 mb-3 text-center">Game Stats</h3>
+                                <div className="space-y-3">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-xs text-gray-600">Score</span>
+                                        <span className="text-lg font-bold text-blue-600">🏆 {gameState.score}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-xs text-gray-600">Moves</span>
+                                        <span className="text-lg font-bold text-green-600">🎯 {gameState.moves}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-xs text-gray-600">Pairs</span>
+                                        <span className="text-lg font-bold text-purple-600">💝 {gameState.matchedPairs}/{totalPairs}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-xs text-gray-600">Time</span>
+                                        <span className="text-lg font-bold text-orange-600 font-mono">⏱️ {Math.floor(gameState.timeElapsed / 60)}:{(gameState.timeElapsed % 60).toString().padStart(2, '0')}</span>
+                                    </div>
                                 </div>
-                                <div className="text-sm text-blue-500">Score</div>
-                            </div>
-                            <div className="bg-green-50 rounded-lg p-4">
-                                <div className="text-2xl font-bold text-green-600">
-                                    {gameState.moves}
+                            </motion.div>
+
+                            {/* Game Controls */}
+                            <motion.div
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ duration: 0.6, delay: 0.1 }}
+                                className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg p-4"
+                            >
+                                <h3 className="text-sm font-semibold text-gray-700 mb-3 text-center">Controls</h3>
+                                <div className="space-y-2">
+                                    <button
+                                        onClick={gameState.gameStatus === 'playing' ? resetGame : startGame}
+                                        className={`w-full px-3 py-2 text-white rounded-lg text-xs font-medium transition-all duration-300 ${
+                                            gameState.gameStatus === 'idle' 
+                                                ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700' 
+                                                : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700'
+                                        }`}
+                                    >
+                                        {gameState.gameStatus === 'idle' ? '🎮 Start Game' : '🔄 Reset Game'}
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            // Clear session data
+                                            sessionStorage.removeItem('selectedUserId');
+                                            sessionStorage.removeItem('selectedUser');
+                                            // Clear browser history to prevent back navigation
+                                            window.history.replaceState(null, '', '/play');
+                                            window.history.pushState(null, '', '/play');
+                                            // Redirect to play page
+                                            router.visit('/play', { replace: true });
+                                        }}
+                                        className="w-full px-3 py-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg text-xs font-medium transition-all duration-300"
+                                    >
+                                        🚪 Exit Game
+                                    </button>
+                                    <select
+                                        value={gameState.difficulty}
+                                        onChange={(e) => changeDifficulty(e.target.value as 'easy' | 'medium' | 'hard')}
+                                        className="w-full px-3 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg text-xs font-medium focus:outline-none cursor-pointer"
+                                    >
+                                        <option value="easy" className="bg-purple-600">🟢 Easy (4x3)</option>
+                                        <option value="medium" className="bg-purple-600">🟡 Medium (6x4)</option>
+                                        <option value="hard" className="bg-purple-600">🔴 Hard (6x6)</option>
+                                    </select>
                                 </div>
-                                <div className="text-sm text-green-500">Moves</div>
-                            </div>
-                            <div className="bg-purple-50 rounded-lg p-4">
-                                <div className="text-2xl font-bold text-purple-600">
-                                    {gameState.matchedPairs}/{totalPairs}
+                            </motion.div>
+
+                            {/* Cat Facts Panel */}
+                            <motion.div
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ duration: 0.7, delay: 0.2 }}
+                                className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg p-4 flex-1"
+                            >
+                                <div className="flex items-center justify-between mb-3">
+                                    <h3 className="text-sm font-semibold text-gray-700">Cat Facts</h3>
+                                    <div className="px-2 py-1 bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs rounded-full font-medium">
+                                        📚 {gameState.catFacts.length}
+                                    </div>
                                 </div>
-                                <div className="text-sm text-purple-500">Pairs</div>
-                            </div>
-                            <div className="bg-orange-50 rounded-lg p-4">
-                                <div className="text-2xl font-bold text-orange-600">
-                                    {Math.floor(gameState.timeElapsed / 60)}:{(gameState.timeElapsed % 60).toString().padStart(2, '0')}
+                                
+                                <div className="space-y-2 max-h-56 overflow-y-auto custom-scrollbar">
+                                    {gameState.catFacts.length === 0 ? (
+                                        <div className="text-center py-20">
+                                            <div className="text-gray-400 text-3xl mb-3">🐱</div>
+                                            <p className="text-xs text-gray-500">
+                                                Match cards to unlock<br />fascinating cat facts!
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        gameState.catFacts.map((fact, index) => (
+                                            <motion.div
+                                                key={index}
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ duration: 0.3, delay: index * 0.1 }}
+                                                className="group"
+                                            >
+                                                <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200/50 rounded-lg p-3 hover:shadow-sm transition-all duration-200">
+                                                    <div className="flex items-start gap-2">
+                                                        <div className="flex-shrink-0 w-5 h-5 bg-gradient-to-r from-orange-400 to-yellow-500 rounded-full flex items-center justify-center text-white font-bold text-xs">
+                                                            {index + 1}
+                                                        </div>
+                                                        <p className="text-xs text-gray-700 leading-relaxed flex-1">{fact.fact}</p>
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        ))
+                                    )}
                                 </div>
-                                <div className="text-sm text-orange-500">Time</div>
+                            </motion.div>
+                        </div>
+
+                        {/* Center Panel - Game Board */}
+                        <div className="lg:col-span-2 flex flex-col min-h-0 mr-10">
+                            <div className="flex-1 flex items-start justify-center ">
+                                <GameBoard
+                                    cards={gameState.cards}
+                                    onCardClick={handleCardClick}
+                                    difficulty={gameState.difficulty}
+                                    isDisabled={isCardClickDisabled}
+                                />
                             </div>
                         </div>
-                    </motion.div>
+                    </div>
+                </div>
 
-                    {/* Game Controls */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6, delay: 0.2 }}
-                        className="flex flex-wrap justify-center gap-4 mb-8"
-                    >
-                        <button
-                            onClick={startGame}
-                            disabled={gameState.gameStatus === 'playing'}
-                            className="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors"
-                        >
-                            {gameState.gameStatus === 'idle' ? 'Start Game' : 'Playing...'}
-                        </button>
-                        <button
-                            onClick={resetGame}
-                            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-                        >
-                            Reset Game
-                        </button>
-                        <select
-                            value={gameState.difficulty}
-                            onChange={(e) => changeDifficulty(e.target.value as 'easy' | 'medium' | 'hard')}
-                            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                            <option value="easy">Easy (4x3)</option>
-                            <option value="medium">Medium (4x4)</option>
-                            <option value="hard">Hard (6x4)</option>
-                        </select>
-                    </motion.div>
-
-                    {/* Game Board */}
-                    <GameBoard
-                        cards={gameState.cards}
-                        onCardClick={handleCardClick}
-                        difficulty={gameState.difficulty}
-                        isDisabled={isCardClickDisabled}
-                    />
-
-                    {/* Cat Facts Display */}
-                    {gameState.catFacts.length > 0 && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5 }}
-                            className="mt-8 bg-gradient-to-r from-yellow-100 to-orange-100 rounded-xl shadow-lg p-6"
-                        >
-                            <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                                <span className="text-2xl mr-2">🐱</span>
-                                Cat Facts You've Learned ({gameState.catFacts.length})
-                            </h3>
-                            <div className="space-y-3">
-                                {gameState.catFacts.map((fact, index) => (
-                                    <motion.div
-                                        key={index}
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ duration: 0.3, delay: index * 0.1 }}
-                                        className="bg-white rounded-lg p-4 shadow-sm"
-                                    >
-                                        <p className="text-gray-700">{fact}</p>
-                                    </motion.div>
-                                ))}
-                            </div>
-                        </motion.div>
-                    )}
-
-                    {/* Win Modal */}
-                    {gameState.gameStatus === 'won' && (
+                {/* Win Modal */}
+                {gameState.gameStatus === 'won' && (
                         <motion.div
                             initial={{ opacity: 0, scale: 0.8 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ duration: 0.5 }}
-                            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+                            className="fixed inset-0 flex items-center justify-center"
                         >
                             <div className="bg-white rounded-2xl shadow-2xl p-8 text-center max-w-md mx-4">
                                 <div className="text-6xl mb-4">🎉</div>
@@ -212,24 +248,34 @@ function MemoryGameComponent({ user }: { user: { id: number; name: string } }) {
                             </div>
                         </motion.div>
                     )}
-                </div>
 
-                {/* Celebrations */}
-                {celebrationState.showMain && <CelebrationAnimation isVisible={celebrationState.showMain} />}
-                {celebrationState.showFact && (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.5 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.5 }}
-                        className="fixed top-4 right-4 bg-yellow-400 text-yellow-900 px-6 py-3 rounded-lg shadow-lg z-40"
-                    >
-                        <div className="flex items-center">
-                            <span className="text-xl mr-2">🐱</span>
-                            New Cat Fact Unlocked!
-                        </div>
-                    </motion.div>
-                )}
-            </div>
+                    {/* Celebrations */}
+                    {celebrationState.showMain && <CelebrationAnimation isVisible={celebrationState.showMain} />}
+                    {celebrationState.showFact && (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.5, x: 100 }}
+                            animate={{ opacity: 1, scale: 1, x: 0 }}
+                            exit={{ opacity: 0, scale: 0.5, x: 100 }}
+                            className="fixed top-6 right-6 z-50"
+                        >
+                            <div className="bg-white/95 backdrop-blur-sm border border-yellow-200/50 rounded-2xl shadow-2xl p-4 max-w-sm">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg">
+                                        <span className="text-xl">🐱</span>
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="text-sm font-bold bg-gradient-to-r from-orange-600 to-yellow-600 bg-clip-text text-transparent">
+                                            New Cat Fact!
+                                        </div>
+                                        <div className="text-xs text-gray-600 font-medium">
+                                            Check the side panel →
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+                </div>
         </>
     );
 }

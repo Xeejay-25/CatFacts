@@ -19,13 +19,36 @@ const GameBoard: React.FC<GameBoardProps> = ({
 }) => {
     const { gridCols } = getGridConfig(difficulty);
 
+    // Adjust card size and spacing based on difficulty
+    const getCardSizing = () => {
+        switch (difficulty) {
+            case 'hard':
+                return {
+                    maxWidth: `${gridCols * 90}px`, // Smaller cards for 6x6 grid
+                    gap: 'gap-2 mt-15',
+                };
+            case 'medium':
+                return {
+                    maxWidth: `${gridCols * 100}px`, // Medium cards
+                    gap: 'gap-3 mt-5'
+                };
+            default: // easy
+                return {
+                    maxWidth: `${gridCols * 120}px`, // Larger cards for easy
+                    gap: 'gap-3 sm:gap-4 mt-20'
+                };
+        }
+    };
+
+    const { maxWidth, gap } = getCardSizing();
+
     return (
-        <div className="w-full max-w-4xl mx-auto p-4">
+        <div className="w-full max-w-4xl mx-auto p-2">
             <motion.div
-                className={`grid gap-3 sm:gap-4 mx-auto`}
+                className={`grid ${gap} mx-auto`}
                 style={{
                     gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`,
-                    maxWidth: `${gridCols * 120}px`
+                    maxWidth
                 }}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -47,6 +70,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
                             card={card}
                             onClick={() => onCardClick(card.id)}
                             isDisabled={isDisabled}
+                            difficulty={difficulty}
                         />
                     </motion.div>
                 ))}

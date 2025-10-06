@@ -24,9 +24,10 @@ export default function UserCreate() {
                 }),
             });
 
-            if (response.ok) {
-                const data = await response.json();
-                const newUser = data.user;
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                const newUser = data.data.user;
 
                 // Store the new user in session
                 sessionStorage.setItem('selectedUserId', newUser.id.toString());
@@ -35,7 +36,13 @@ export default function UserCreate() {
                 // Navigate to game
                 router.visit('/game');
             } else {
-                alert('Failed to create user. Please try again.');
+                // Handle validation errors specifically
+                if (response.status === 422 && data.errors) {
+                    const errorMessages = Object.values(data.errors).flat().join('\n');
+                    alert(errorMessages || 'Validation failed. Please check your input.');
+                } else {
+                    alert(data.message || 'Failed to create user. Please try again.');
+                }
             }
         } catch (error) {
             console.error('Failed to create user:', error);

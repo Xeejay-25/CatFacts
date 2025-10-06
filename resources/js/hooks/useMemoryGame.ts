@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { GameState } from '@/types/game';
+import { GameState, CatFact } from '@/types/game';
 import { generateCards, cardsMatch, calculateScore } from '@/lib/gameUtils';
+import ApiService from '@/services/api';
 
 const initialGameState: GameState = {
     cards: [],
@@ -14,16 +15,16 @@ const initialGameState: GameState = {
     catFacts: [],
     showFact: false,
     currentFact: null,
+    gameId: null,
+    sessionId: null,
 };
-
-// Game session management
-let currentGameId: number | null = null;
 
 export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy', userId?: number) => {
     const [gameState, setGameState] = useState<GameState>(() => ({
         ...initialGameState,
         difficulty,
         cards: generateCards(difficulty),
+        sessionId: ApiService.getSessionId(),
     }));
 
     // Timer effect
@@ -36,197 +37,206 @@ export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy', u
                     ...prev,
                     timeElapsed: prev.timeElapsed + 1,
                 }));
+
+                // Auto-save game progress every 10 seconds
+                if (gameState.timeElapsed % 10 === 0 && gameState.gameId) {
+                    updateGameProgress();
+                }
             }, 1000);
         }
 
         return () => clearInterval(interval);
-    }, [gameState.gameStatus]);
+    }, [gameState.gameStatus, gameState.timeElapsed]);
 
-    // Fetch cat fact from backend
-    const fetchCatFact = useCallback(async (): Promise<string> => {
+    // Update game progress on backend
+    const updateGameProgress = useCallback(async () => {
+        if (!gameState.gameId) return;
+
         try {
-            const response = await fetch('/api/cat-facts/random');
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            return data.fact;
-        } catch (error) {
-            console.error('Failed to fetch cat fact from backend:', error);
-            return 'Cats are amazing creatures that bring joy to millions of people worldwide! 🐱';
-        }
-    }, []);
-
-    // Start a game session on the backend
-    const startGameSession = useCallback(async (difficulty: string) => {
-        try {
-            const requestBody: { difficulty: string; user_id?: number } = { difficulty };
-            if (userId) {
-                requestBody.user_id = userId;
-            }
-
-            const response = await fetch('/api/games', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                },
-                body: JSON.stringify(requestBody),
+            await ApiService.updateGame(gameState.gameId, {
+                score: gameState.score,
+                moves: gameState.moves,
+                time_elapsed: gameState.timeElapsed,
+                matched_pairs: gameState.matchedPairs,
             });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            if (data.success && data.game) {
-                currentGameId = data.game.id;
-                console.log('Game session started:', data.game);
-                return data;
-            } else {
-                throw new Error('Invalid response format');
-            }
         } catch (error) {
-            console.error('Failed to start game session:', error);
-            return null;
+            console.error('Failed to update game progress:', error);
         }
-    }, [userId]);
-
-    // End a game session on the backend
-    const endGameSession = useCallback(async (score: number, moves: number, timeElapsed: number, status: string = 'won') => {
-        if (!currentGameId) {
-            console.warn('No current game ID to end session');
-            return;
-        }
-
-        console.log('Ending game session:', { currentGameId, score, moves, timeElapsed, status });
-
-        try {
-            const response = await fetch(`/api/games/${currentGameId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                },
-                body: JSON.stringify({
-                    score,
-                    moves,
-                    time_elapsed: timeElapsed,
-                    matched_pairs: Math.floor(score / 100) || 0, // Estimate matched pairs from score
-                    status: status,
-                }),
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            console.log('Game session ended successfully:', data);
-            currentGameId = null;
-            return data;
-        } catch (error) {
-            console.error('Failed to end game session:', error);
-        }
-    }, []);
+    }, [gameState.gameId, gameState.score, gameState.moves, gameState.timeElapsed, gameState.matchedPairs]);
 
     // Start game
     const startGame = useCallback(async () => {
-        // Start backend game session
-        await startGameSession(gameState.difficulty);
+        try {
+            // Generate a fresh session ID for this game
+            ApiService.clearSession();
+            const response = await ApiService.startGame(gameState.difficulty, userId);
 
-        setGameState(prev => ({
-            ...prev,
-            gameStatus: 'playing',
-            timeElapsed: 0,
-            moves: 0,
-            score: 0,
-            matchedPairs: 0,
-            selectedCards: [],
-            catFacts: [],
-            cards: prev.cards.map(card => ({
-                ...card,
-                isFlipped: false,
-                isMatched: false,
-            })),
-        }));
-    }, [gameState.difficulty, startGameSession]);
+            if (response.success && response.data) {
+                setGameState(prev => ({
+                    ...prev,
+                    gameStatus: 'playing',
+                    timeElapsed: 0,
+                    moves: 0,
+                    score: 0,
+                    matchedPairs: 0,
+                    selectedCards: [],
+                    catFacts: [],
+                    gameId: response.data!.game.id,
+                    sessionId: response.data!.session_id,
+                    cards: prev.cards.map(card => ({
+                        ...card,
+                        isFlipped: false,
+                        isMatched: false,
+                    })),
+                }));
+
+                console.log('Game started:', response.data.game);
+            } else {
+                throw new Error(response.message || 'Failed to start game');
+            }
+        } catch (error) {
+            console.error('Failed to start game:', error);
+            // Start local game as fallback
+            setGameState(prev => ({
+                ...prev,
+                gameStatus: 'playing',
+                timeElapsed: 0,
+                moves: 0,
+                score: 0,
+                matchedPairs: 0,
+                selectedCards: [],
+                catFacts: [],
+                cards: prev.cards.map(card => ({
+                    ...card,
+                    isFlipped: false,
+                    isMatched: false,
+                })),
+            }));
+        }
+    }, [gameState.difficulty, userId]);
 
     // Reset game
     const resetGame = useCallback(async () => {
-        // If there's an active game session, mark it as abandoned
-        if (currentGameId && gameState.gameStatus === 'playing') {
+        // Mark current game as abandoned if active
+        if (gameState.gameId && gameState.gameStatus === 'playing') {
             try {
-                await fetch(`/api/games/${currentGameId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                    },
-                    body: JSON.stringify({
-                        status: 'abandoned',
-                        score: gameState.score,
-                        moves: gameState.moves,
-                        time_elapsed: gameState.timeElapsed,
-                        matched_pairs: gameState.matchedPairs,
-                    }),
+                await ApiService.updateGame(gameState.gameId, {
+                    status: 'abandoned',
+                    score: gameState.score,
+                    moves: gameState.moves,
+                    time_elapsed: gameState.timeElapsed,
+                    matched_pairs: gameState.matchedPairs,
                 });
-                currentGameId = null;
             } catch (error) {
                 console.error('Failed to abandon game session:', error);
             }
         }
+
+        // Clear the session to get a fresh one for the next game
+        ApiService.clearSession();
 
         setGameState(prev => ({
             ...initialGameState,
             difficulty: prev.difficulty,
             cards: generateCards(prev.difficulty),
+            sessionId: ApiService.getSessionId(),
         }));
-    }, [gameState.gameStatus, gameState.score, gameState.moves, gameState.timeElapsed, gameState.matchedPairs]);
+    }, [gameState.gameId, gameState.gameStatus, gameState.score, gameState.moves, gameState.timeElapsed, gameState.matchedPairs]);
 
     // Change difficulty
     const changeDifficulty = useCallback(async (newDifficulty: 'easy' | 'medium' | 'hard') => {
-        // If there's an active game session, mark it as abandoned
-        if (currentGameId && gameState.gameStatus === 'playing') {
+        // Mark current game as abandoned if active
+        if (gameState.gameId && gameState.gameStatus === 'playing') {
             try {
-                await fetch(`/api/games/${currentGameId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                    },
-                    body: JSON.stringify({
-                        status: 'abandoned',
-                        score: gameState.score,
-                        moves: gameState.moves,
-                        time_elapsed: gameState.timeElapsed,
-                        matched_pairs: gameState.matchedPairs,
-                    }),
+                await ApiService.updateGame(gameState.gameId, {
+                    status: 'abandoned',
+                    score: gameState.score,
+                    moves: gameState.moves,
+                    time_elapsed: gameState.timeElapsed,
+                    matched_pairs: gameState.matchedPairs,
                 });
-                currentGameId = null;
             } catch (error) {
                 console.error('Failed to abandon game session:', error);
             }
         }
 
-        setGameState(({
+        // Clear the session to get a fresh one for the next game
+        ApiService.clearSession();
+
+        setGameState(prev => ({
             ...initialGameState,
             difficulty: newDifficulty,
             cards: generateCards(newDifficulty),
+            sessionId: ApiService.getSessionId(),
         }));
-    }, [gameState.gameStatus, gameState.score, gameState.moves, gameState.timeElapsed, gameState.matchedPairs]);
+    }, [gameState.gameId, gameState.gameStatus, gameState.score, gameState.moves, gameState.timeElapsed, gameState.matchedPairs]);
+
+    // Get cat fact from backend
+    const getCatFactReward = useCallback(async (): Promise<CatFact | null> => {
+        if (!gameState.gameId) {
+            // Fallback to API call if no game session
+            try {
+                const response = await ApiService.getRandomCatFact();
+                if (response.success && response.data) {
+                    return response.data;
+                }
+            } catch (error) {
+                console.error('Failed to get cat fact:', error);
+            }
+            return null;
+        }
+
+        try {
+            const response = await ApiService.addFactToGame(gameState.gameId);
+            if (response.success && response.data) {
+                return response.data.fact;
+            }
+        } catch (error) {
+            console.error('Failed to add fact to game:', error);
+        }
+
+        return null;
+    }, [gameState.gameId]);
 
     // Show cat fact reward
     const showCatFactReward = useCallback(async () => {
-        const fact = await fetchCatFact();
-        setGameState(prev => ({
-            ...prev,
-            catFacts: [...prev.catFacts, fact],
-            // Remove the modal display - just add the fact silently
-        }));
-    }, [fetchCatFact]);
+        const fact = await getCatFactReward();
+        if (fact) {
+            setGameState(prev => ({
+                ...prev,
+                catFacts: [...prev.catFacts, fact],
+                currentFact: fact,
+                showFact: true,
+            }));
+
+            // Hide fact after 3 seconds
+            setTimeout(() => {
+                setGameState(prev => ({
+                    ...prev,
+                    showFact: false,
+                    currentFact: null,
+                }));
+            }, 3000);
+        }
+    }, [getCatFactReward]);
+
+    // Complete game
+    const completeGame = useCallback(async (finalScore: number, finalMoves: number, finalTime: number, finalMatchedPairs: number) => {
+        if (gameState.gameId) {
+            try {
+                await ApiService.updateGame(gameState.gameId, {
+                    status: 'won',
+                    score: finalScore,
+                    moves: finalMoves,
+                    time_elapsed: finalTime,
+                    matched_pairs: finalMatchedPairs,
+                });
+                console.log('Game completed on backend');
+            } catch (error) {
+                console.error('Failed to complete game on backend:', error);
+            }
+        }
+    }, [gameState.gameId]);
 
     // Handle card click
     const handleCardClick = useCallback(async (cardId: number) => {
@@ -289,10 +299,10 @@ export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy', u
                         ? calculateScore(newMoves, prev.timeElapsed, prev.difficulty)
                         : prev.score;
 
-                    // End game session if won
+                    // Complete game if won
                     if (isGameWon) {
-                        console.log('Game won! Ending session with:', { score: newScore, moves: newMoves, time: prev.timeElapsed });
-                        endGameSession(newScore, newMoves, prev.timeElapsed, 'won');
+                        console.log('Game won! Final score:', newScore);
+                        completeGame(newScore, newMoves, prev.timeElapsed, newMatchedPairs);
                     }
 
                     return {
@@ -307,7 +317,7 @@ export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy', u
                 });
             }, 1000);
         }
-    }, [gameState.cards, gameState.selectedCards, gameState.gameStatus, showCatFactReward, endGameSession]);
+    }, [gameState.cards, gameState.selectedCards, gameState.gameStatus, showCatFactReward, completeGame]);
 
     return {
         gameState,
@@ -316,5 +326,6 @@ export const useMemoryGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy', u
         changeDifficulty,
         handleCardClick,
         isCardClickDisabled: gameState.selectedCards.length >= 2 || gameState.gameStatus !== 'playing',
+        updateGameProgress,
     };
 };

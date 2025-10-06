@@ -4,64 +4,67 @@ import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Trophy, Star, Clock, Target, Medal, Crown } from 'lucide-react';
-
-interface LeaderboardEntry {
-    id: number;
-    player: string;
-    score: number;
-    moves: number;
-    time_elapsed: number;
-    difficulty: 'easy' | 'medium' | 'hard';
-    status: 'won' | 'playing' | 'abandoned';
-    completed_at: string;
-    created_at: string;
-    facts_collected: number;
-}
-
-interface UserRanking {
-    user_id: number;
-    name: string;
-    total_games: number;
-    completed_games: number;
-    total_score: number;
-    best_score: number;
-    average_score: number;
-    average_time: number;
-    facts_collected: number;
-}
+import { ArrowLeft, Trophy, Star, Clock, Target, Medal, Crown, Loader2, Gamepad2 } from 'lucide-react';
+import { LeaderboardEntry, UserStats } from '@/types/game';
+import ApiService from '@/services/api';
 
 export default function Leaderboard() {
     const [topGames, setTopGames] = useState<LeaderboardEntry[]>([]);
-    const [topPlayers, setTopPlayers] = useState<UserRanking[]>([]);
-    const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
+    const [topPlayers, setTopPlayers] = useState<UserStats[]>([]);
+    const [selectedDifficulty, setSelectedDifficulty] = useState<string>('easy');
+    const [selectedPeriod, setSelectedPeriod] = useState<string>('all');
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     const fetchLeaderboards = useCallback(async () => {
         setLoading(true);
+        setError(null);
+
         try {
             // Fetch top games
-            const gamesParam = selectedDifficulty !== 'all' ? `?difficulty=${selectedDifficulty}&limit=10` : '?limit=10';
-            const gamesResponse = await fetch(`/api/games/leaderboard${gamesParam}`);
-            const gamesData = await gamesResponse.json();
+            const gamesFilters: any = { limit: 10 };
+            gamesFilters.difficulty = selectedDifficulty;
+
+            const gamesResponse = await ApiService.getLeaderboard(gamesFilters);
 
             // Fetch top players
-            const playersResponse = await fetch('/api/users/leaderboard');
-            const playersData = await playersResponse.json();
-
-            if (gamesData.success) {
-                setTopGames(gamesData.leaderboard || []);
+            const playersFilters: any = { limit: 20 };
+            playersFilters.difficulty = selectedDifficulty;
+            if (selectedPeriod !== 'all') {
+                playersFilters.period = selectedPeriod;
             }
 
-            if (playersData.success) {
-                setTopPlayers(playersData.leaderboard || []);
+            const playersResponse = await ApiService.getUserLeaderboard(playersFilters);
+
+            if (gamesResponse.success && gamesResponse.data) {
+                // Add rank to each entry
+                const rankedGames = gamesResponse.data.leaderboard.map((game: any, index: number) => ({
+                    ...game,
+                    rank: index + 1,
+                    created_at: game.created_at || game.completed_at // Ensure created_at exists
+                }));
+                setTopGames(rankedGames);
+            } else {
+                throw new Error(gamesResponse.message || 'Failed to fetch games leaderboard');
+            }
+
+            if (playersResponse.success && playersResponse.data) {
+                // Add rank to each player
+                const rankedPlayers = playersResponse.data.leaderboard.map((player: any, index: number) => ({
+                    ...player,
+                    rank: index + 1
+                }));
+                setTopPlayers(rankedPlayers);
+            } else {
+                throw new Error(playersResponse.message || 'Failed to fetch players leaderboard');
             }
         } catch (error) {
             console.error('Failed to fetch leaderboards:', error);
+            setError(error instanceof Error ? error.message : 'Failed to load leaderboards');
         } finally {
             setLoading(false);
         }
-    }, [selectedDifficulty]);
+    }, [selectedDifficulty, selectedPeriod]);
 
     useEffect(() => {
         fetchLeaderboards();
@@ -152,7 +155,7 @@ export default function Leaderboard() {
 
                                             {/* Difficulty Filter */}
                                             <div className="flex gap-2 mt-4">
-                                                {['all', 'easy', 'medium', 'hard'].map((difficulty) => (
+                                                {['easy', 'medium', 'hard'].map((difficulty) => (
                                                     <Button
                                                         key={difficulty}
                                                         size="sm"
@@ -194,7 +197,7 @@ export default function Leaderboard() {
                                                             </div>
 
                                                             <div className="flex items-center gap-3">
-                                                                <Badge className={difficultyColors[game.difficulty]}>
+                                                                <Badge className={difficultyColors[game.difficulty as keyof typeof difficultyColors] || difficultyColors.easy}>
                                                                     {game.difficulty}
                                                                 </Badge>
                                                                 <div className="text-right">
